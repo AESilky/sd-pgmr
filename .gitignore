@@ -59,3 +59,6 @@ _autosave*
 \#auto*
 **/*-backups/**
 *~*.lck
+
+# Exclude ZIP files. If any ZIPs are needed, add them specifically below
+**/*.zip

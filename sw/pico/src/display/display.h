@@ -14,6 +14,21 @@
 #include <stdlib.h>
 #include "pico/stdlib.h"
 
+typedef enum _display_attrs {
+    DISP_ATTR_INVERSE   = 0x0001,
+    DISP_ATTR_BLINK     = 0x0002,
+    DISP_ATTR_BLANK     = 0x0004,
+} display_attrs_t;
+
+typedef struct _display_info {
+    uint16_t hres;
+    uint16_t vres;
+    uint16_t cols;
+    uint16_t rows;
+    uint16_t colors;
+    display_attrs_t attrs;
+} display_info_t;
+
 typedef struct _render_area {
     uint8_t start_col;
     uint8_t end_col;
@@ -25,31 +40,19 @@ typedef struct _render_area {
 #define Paint (true)
 #define NoPaint (false)
 
-/*! @brief Memory area for the screen data pixel-bytes */
+/** @brief Memory area for the screen data pixel-bytes */
 extern uint8_t display_buf[];
-/*! @brief Render area for the full display screen */
+/** @brief Render area for the full display screen */
 extern render_area_t display_full_area;
-
-extern void display_fill(uint8_t* buf, uint8_t fill_data);
-
-extern void display_fill_page(uint8_t* buf, uint8_t fill_data, uint8_t page);
-
-extern void display_render(uint8_t* buf, render_area_t* area);
-
-extern void display_calc_render_area_buflen(render_area_t *area);
-
-extern int display_write_buf(uint8_t *buf, size_t len);
-
-
-#include "oled1106_spi/display_oled1106.h" // Specifics for the OLED1106-SPI display
-
 /** @brief Text character data for the full text screen */
-extern char display_full_screen_text[DISP_CHAR_LINES * DISP_CHAR_COLS];
+extern char display_full_screen_text[];
 
 /** @brief Bit to OR in to invert a character (display black char on white background) */
 #define DISP_CHAR_INVERT_BIT 0x80
 /** @brief Mask to AND with a character to remove invert (display white char on black background) */
 #define DISP_CHAR_NORMAL_MASK 0x7F
+
+extern void display_calc_render_area_buflen(render_area_t* area);
 
 /** @brief Clear the text screen
  *  \ingroup display
@@ -73,6 +76,10 @@ extern void display_clear(bool paint);
  */
 extern void display_char(unsigned short int row, unsigned short int col, const char c, bool paint);
 
+extern void display_fill(uint8_t* buf, uint8_t fill_data);
+
+extern void display_fill_page(uint8_t* buf, uint8_t fill_data, uint8_t page);
+
 /** @brief Test the fonts by displaying all of the characters
  *  \ingroup display
  *
@@ -82,6 +89,8 @@ extern void display_char(unsigned short int row, unsigned short int col, const c
  */
 extern void display_font_test(void);
 
+extern display_info_t display_info();
+
 /** @brief Paint the actual display screen
  *  \ingroup display
  *
@@ -90,6 +99,8 @@ extern void display_font_test(void);
  * is called to move the screen/image buffer onto the display.
  */
 extern void display_paint(void);
+
+extern void display_render(uint8_t* buf, render_area_t* area);
 
 /** @brief Clear the character row.
  *  \ingroup display
@@ -109,7 +120,7 @@ extern void display_row_clear(unsigned short int row, bool paint);
 */
 extern void display_row_paint(unsigned short int row);
 
-/** @brief Scroll 2 or more rows up.
+/** @brief Scroll rows up.
  *  \ingroup display
  *
  *  Scroll the character rows up, removing the top row and
@@ -126,8 +137,8 @@ extern void display_rows_scroll_up(unsigned short int row_t, unsigned short int 
  *
  * Display a string of ASCII characters (plus some special characters)
  *
- * @param row 1-6 With 1 being the top (status) line
- * @param col 1-14 Starting column
+ * @param row 0 being the top line
+ * @param col 0 being the starting column
  * @param pString Pointer to the first character of a null-terminated string
  * @param invert True to invert the characters
  * @param paint True to paint the screen after the operation
@@ -140,6 +151,8 @@ extern void display_string(unsigned short int row, unsigned short int col, const
  *  \param paint True to paint the screen after the operation.
 */
 extern void display_update(bool paint);
+
+extern int disp_write_buf(uint8_t* buf, size_t len);
 
 
 // ////////////////////////////////////////////////////////////////////////////////

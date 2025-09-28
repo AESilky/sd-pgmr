@@ -5,14 +5,11 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
-#include "display_spi_ops.h"
+#include "dispops.h"
 #include "system_defs.h"
 #include "board.h"
 
 #include "hardware/spi.h"
-
-#define DISPLAY_DC_CMD 0
-#define DISPLAY_DC_DATA 1
 
 /** @brief Board Operation Token, needed to perform Disp C/D select */
 static boptkn_t boptkn;
@@ -45,27 +42,32 @@ static void _command_mode(bool cmd) {
     }
 }
 
-bool display_op_start(op_cmd_data_t cd) {
+bool disp_cmd_op_start() {
     boptkn = board_op_start();
     if (boptkn == NULL) {
         return false;
     }
-    if (cd == DISP_OP_CMD) {
-        _command_mode(true);
-    }
-    else {
-        _command_mode(false);
-    }
+    _command_mode(true);
     _cs(true);
     return true;
 }
 
-void display_op_end() {
+bool disp_data_op_start() {
+    boptkn = board_op_start();
+    if (boptkn == NULL) {
+        return false;
+    }
+    _command_mode(false);
+    _cs(true);
+    return true;
+}
+
+void disp_op_end() {
     _cs(false);
     board_op_end(boptkn);
 }
 
-void display_reset() {
+void disp_reset() {
     boptkn = board_op_start();
     if (boptkn == NULL) {
         return;
@@ -78,10 +80,10 @@ void display_reset() {
     board_op_end(boptkn);
 }
 
-int display_data_write(uint8_t data) {
+int disp_write(uint8_t data) {
     return (spi_write_blocking(SPI_SD_DISP_DEVICE, &data, 1));
 }
 
-int display_write_buf(const uint8_t* data, size_t len) {
+int disp_write_buf(const uint8_t* data, size_t len) {
     return (spi_write_blocking(SPI_SD_DISP_DEVICE, data, len));
 }

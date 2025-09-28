@@ -1,0 +1,25 @@
+{
+    "cmake.sourceDirectory": "/home/esilky/proj/sd-pgmr/sw/pico/src",
+    "cSpell.words": [
+        "ADDRH",
+        "ADDRL",
+        "ADDRM",
+        "bdop",
+        "boardop",
+        "boptkn",
+        "cmdattn",
+        "hdlrs",
+        "hwrt",
+        "LONGPRESS",
+        "multicore",
+        "pbsw",
+        "PICOUTIL",
+        "PRGMDEV",
+        "sdpgmr",
+        "SDTC",
+        "slpmsg",
+        "stdlib",
+        "strnltonull",
+        "strskipws"
+    ]
+}

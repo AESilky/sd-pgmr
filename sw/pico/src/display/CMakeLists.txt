@@ -1,10 +1,9 @@
-add_subdirectory(display_spi)
+add_subdirectory(dispops)
 add_subdirectory(fonts)
-add_subdirectory(oled1106_spi)
+add_subdirectory(oled1106)
 
 include_directories(
-    display_spi
+    dispops
     fonts
-    oled1106_spi
 )
 

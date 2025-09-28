@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"cmt.h": "c",
+			"cmt_t.h": "c",
+			"system_defs.h": "c",
+			"display_spi_ops.h": "c",
+			"board.h": "c"
+		},
+		"cortex-debug.variableUseNaturalFormat": false
+	}
+}

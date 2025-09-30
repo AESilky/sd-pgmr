@@ -37,6 +37,7 @@ add_compile_options(
 )
 # ZZZ Figure out how to set `PICO_DEBUG_MALLOC` only if 'debug build'
 add_compile_definitions(
+  PICO_INCLUDE_RTC_DATETIME=1
   PICO_MALLOC_PANIC
   PICO_USE_MALLOC_MUTEX
   PICO_QUEUE_MAX_LEVEL
@@ -65,11 +66,13 @@ set(NAME_BASE "SD_Programmer")
 # Add the required include file paths to the build
 include_directories(
   ${CMAKE_CURRENT_LIST_DIR}
+  ${PICO_SDK_PATH}/src/common/pico_base_headers/include
   ${PICO_SDK_PATH}/src/rp2_common/hardware_adc/include
   ${PICO_SDK_PATH}/src/rp2_common/hardware_dma/include
   ${PICO_SDK_PATH}/src/rp2_common/hardware_spi/include
   ${PICO_SDK_PATH}/src/rp2_common/hardware_pio/include
   ${PICO_SDK_PATH}/src/rp2_common/hardware_pwm/include
+  ${PICO_SDK_PATH}/src/rp2_common/hardware_rtc/include
   ${PICO_SDK_PATH}/src/rp2_common/pico_multicore/include
 )
 
@@ -79,19 +82,23 @@ set(OUR_MODULES
   display
   hid
   hwrt
+  picoutil
   rotary_encoder
   util
 )
 #
 add_subdirectory(cmt)
 add_subdirectory(display)
+add_subdirectory(dskops)
 add_subdirectory(hid)
 add_subdirectory(hwrt)
+add_subdirectory(lib)
+add_subdirectory(picohlp)
 add_subdirectory(rotary_encoder)
 add_subdirectory(util)
 #
 # External libraries
-add_subdirectory(lib)
+#add_subdirectory(lib)
 #
 # Pico Libraries/Modules
 set(PICO_LIBS
@@ -113,7 +120,6 @@ main.c
 board.c
 debug_support.c
 multicore.c
-picoutil.c
 )
 
 #

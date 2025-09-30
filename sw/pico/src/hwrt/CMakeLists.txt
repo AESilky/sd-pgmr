@@ -12,6 +12,7 @@ target_sources(hwrt INTERFACE
 )
 
 target_link_libraries(hwrt INTERFACE
+    dskops
     pico_multicore
     pico_stdlib
 )

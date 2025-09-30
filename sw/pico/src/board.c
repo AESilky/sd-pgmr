@@ -16,6 +16,12 @@
  *
 */
 #include "system_defs.h"
+#include "picohlp/rtc_support.h"
+
+#include "board.h"
+
+#include "debug_support.h"
+#include "util/util.h"
 
 #include "pico/stdio.h"
 #include "pico/stdlib.h"
@@ -23,11 +29,6 @@
 #include "pico/printf.h"
 #include "hardware/spi.h"
 #include "hardware/uart.h"
-
-#include "board.h"
-
-#include "debug_support.h"
-#include "util/util.h"
 
 #include <stdlib.h>
 
@@ -37,6 +38,9 @@
 //
 /** @brief `bop_mutex` is used for performing Board Op control signal changes. */
 auto_init_mutex(bop_mutex);
+
+#define BUFSIZE 512
+char _buf[BUFSIZE];
 
 /**
  * @brief Initialize the board
@@ -171,8 +175,7 @@ int board_init() {
     //
 
 
-#if HAS_RP2040_RTC
-    // Initialize the board RTC.
+    // Initialize the board RTC (or Virtual RTC).
     // Start on Sunday the 1st of January 2023 00:00:01
     datetime_t t = {
             .year = 2023,
@@ -188,7 +191,6 @@ int board_init() {
     // clk_sys is >2000x faster than clk_rtc, so datetime is not updated immediately when rtc_set_datetime() is called.
     // tbe delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(100);
-#endif
 
     // The PWM is used for a recurring interrupt in CMT. It will initialize it.
 
@@ -234,51 +236,47 @@ bool cmdattn_switch_pressed() {
 
 void debug_printf(const char* format, ...) {
     if (debug_mode_enabled()) {
-        char buf[512];
         int index = 0;
         va_list xArgs;
         va_start(xArgs, format);
-        index += vsnprintf(&buf[index], sizeof(buf) - index, format, xArgs);
+        index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
         va_end(xArgs);
 #if (DEBUG_SERIAL != 0)
-        printf("%s", buf);
+        printf("%s", _buf);
 #endif
     }
 }
 
 void error_printf(const char* format, ...) {
-    char buf[512];
     int index = 0;
     va_list xArgs;
     va_start(xArgs, format);
-    index += vsnprintf(&buf[index], sizeof(buf) - index, format, xArgs);
+    index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
     va_end(xArgs);
 #if (DEBUG_SERIAL != 0)
-    printf("%s", buf);
+    printf("%s", _buf);
 #endif
 }
 
 void info_printf(const char* format, ...) {
-    char buf[512];
     int index = 0;
     va_list xArgs;
     va_start(xArgs, format);
-    index += vsnprintf(&buf[index], sizeof(buf) - index, format, xArgs);
+    index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
     va_end(xArgs);
 #if (DEBUG_SERIAL != 0)
-    printf("%s", buf);
+    printf("%s", _buf);
 #endif
 }
 
 void warn_printf(const char* format, ...) {
-    char buf[512];
     int index = 0;
     va_list xArgs;
     va_start(xArgs, format);
-    index += vsnprintf(&buf[index], sizeof(buf) - index, format, xArgs);
+    index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
     va_end(xArgs);
 #if (DEBUG_SERIAL != 0)
-    printf("%s", buf);
+    printf("%s", _buf);
 #endif
 }
 

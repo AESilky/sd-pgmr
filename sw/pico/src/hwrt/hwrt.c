@@ -12,9 +12,10 @@
 
 #include "board.h"
 #include "debug_support.h"
-#include "picoutil.h"
+#include "picohlp/picoutil.h"
 
 #include "cmt/cmt.h"
+#include "dskops/dskops.h"
 #include "hid/hid.h"
 #include "util/util.h"
 
@@ -136,11 +137,6 @@ static void _hwrt_module_init() {
 
     _cmdattn_sw_pressed = false;
     gpio_set_irq_enabled_with_callback(CMD_ATTN_SW_GPIO, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &_gpio_irq_handler);
-
-    // Post a TEST to ourself in case we have any tests set up.
-    cmt_msg_t msg;
-    cmt_msg_init(&msg, MSG_HWRT_TEST);
-    postHWRTMsgDiscardable(&msg);
 }
 
 /**
@@ -190,11 +186,20 @@ static void _hwrt_started(cmt_msg_t* msg) {
     // Initialize now that the message loop is running.
     _hwrt_module_init();
 
+    // Initialize other modules that the RT will oversee.
+    //
+    dskops_module_init(); // Make the Disk Operations available
+
     //
     // Done with the Hardware Runtime Startup - Let the DSC know.
     cmt_msg_t msg2;
     cmt_msg_init(&msg2, MSG_HWRT_STARTED);
     postHIDMsg(&msg2);
+
+    // Post a TEST to ourself in case we have any tests set up.
+    cmt_msg_t msg3;
+    cmt_msg_init(&msg3, MSG_HWRT_TEST);
+    postHWRTMsgDiscardable(&msg3);
 }
 
 void start_hwrt() {

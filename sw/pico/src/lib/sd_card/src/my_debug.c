@@ -16,18 +16,14 @@ specific language governing permissions and limitations under the License.
 #include "my_debug.h"
 
 #include "system_defs.h"
+#include "board.h"
 #include "debug_support.h"
 
 void my_printf(const char *pcFormat, ...) {
-    if (debug_mode_enabled()) {
-        char pcBuffer[256] = {0};
-        va_list xArgs;
-        va_start(xArgs, pcFormat);
-        vsnprintf(pcBuffer, sizeof(pcBuffer), pcFormat, xArgs);
-        va_end(xArgs);
-        printf("%s", pcBuffer);
-        fflush(stdout);
-    }
+    va_list xArgs;
+    va_start(xArgs, pcFormat);
+    debug_printf(pcFormat, xArgs);
+    va_end(xArgs);
 }
 
 

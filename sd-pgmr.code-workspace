@@ -10,7 +10,11 @@
 			"cmt_t.h": "c",
 			"system_defs.h": "c",
 			"display_spi_ops.h": "c",
-			"board.h": "c"
+			"board.h": "c",
+			"datetime.h": "c",
+			"types.h": "c",
+			"rtc.h": "c",
+			"picoutil.h": "c"
 		},
 		"cortex-debug.variableUseNaturalFormat": false
 	}

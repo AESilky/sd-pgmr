@@ -10,7 +10,7 @@
 #include "board.h"
 #include "debug_support.h"
 #include "multicore.h"
-#include "picoutil.h"
+#include "picohlp/picoutil.h"
 //
 #include "cmt/cmt.h"
 #include "hwrt/hwrt.h"

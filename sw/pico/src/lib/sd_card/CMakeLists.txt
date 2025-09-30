@@ -18,10 +18,11 @@ target_include_directories(SD_FatFs INTERFACE
     ff15/source
     sd_driver
     include
+    ${PICO_SDK_PATH}/src/rp2_common/hardware_rtc/include
 )
 target_link_libraries(SD_FatFs INTERFACE
-        hardware_spi
-        hardware_dma
-        hardware_rtc
-        pico_stdlib
+    hardware_spi
+    hardware_dma
+    hardware_rtc
+    pico_stdlib
 )

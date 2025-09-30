@@ -13,7 +13,7 @@
 #include "system_defs.h"
 #include "board.h"
 #include "debug_support.h"
-#include "picoutil.h"
+#include "picohlp/picoutil.h"
 #include "util/util.h"
 
 #include "hardware/clocks.h"

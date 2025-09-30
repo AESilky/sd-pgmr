@@ -18,6 +18,7 @@ typedef enum _display_attrs {
     DISP_ATTR_INVERSE   = 0x0001,
     DISP_ATTR_BLINK     = 0x0002,
     DISP_ATTR_BLANK     = 0x0004,
+    DISP_ATTR_UNDERLINE = 0x0008,
 } display_attrs_t;
 
 typedef struct _display_info {
@@ -72,9 +73,10 @@ extern void display_clear(bool paint);
  * @param row 0-5 With 0 being the top line
  * @param col 0-13 Starting column
  * @param c character to display
+ * @param underline Underline the character
  * @param paint Set true to paint the actual display. Otherwise, only buffers will be updated.
  */
-extern void display_char(unsigned short int row, unsigned short int col, const char c, bool paint);
+extern void display_char(unsigned short int row, unsigned short int col, const char c, bool underline, bool paint);
 
 extern void display_fill(uint8_t* buf, uint8_t fill_data);
 
@@ -89,7 +91,7 @@ extern void display_fill_page(uint8_t* buf, uint8_t fill_data, uint8_t page);
  */
 extern void display_font_test(void);
 
-extern display_info_t display_info();
+extern const display_info_t display_info();
 
 /** @brief Paint the actual display screen
  *  \ingroup display
@@ -141,9 +143,10 @@ extern void display_rows_scroll_up(unsigned short int row_t, unsigned short int 
  * @param col 0 being the starting column
  * @param pString Pointer to the first character of a null-terminated string
  * @param invert True to invert the characters
+ * @param underline True to underline the characters
  * @param paint True to paint the screen after the operation
  */
-extern void display_string(unsigned short int row, unsigned short int col, const char* pString, bool invert, bool paint);
+extern void display_string(unsigned short int row, unsigned short int col, const char* pString, bool invert, bool underline, bool paint);
 
 /** @brief Update the display (graphics) buffer from the row data. Optionally paint the screen
  *  \ingroup display
@@ -164,8 +167,10 @@ extern int disp_write_buf(uint8_t* buf, size_t len);
  *
  * This must be called before using the display.
  *
+ * @param invert True to invert the display, False for normal (top to bottom) display.
+ *
  */
-extern void display_module_init(void);
+extern void display_module_init(bool invert);
 
 
 #ifdef __cplusplus

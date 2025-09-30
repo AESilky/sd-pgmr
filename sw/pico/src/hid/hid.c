@@ -12,7 +12,8 @@
 #include "hid.h"
 
 #include "board.h"
-#include "picoutil.h"
+#include "dskops/dskops.h"
+#include "picohlp/picoutil.h"
 #include "cmt/cmt.h"
 #include "display/display.h"
 #include "rotary_encoder/re_pbsw.h"
@@ -93,9 +94,65 @@ static void _cmdattr_sw_irq_handler(uint32_t events) {
 
 
 // ############################################################################
-// Message Handlers
+// 'Run After' Methods
 // ############################################################################
 //
+
+/**
+ * @brief Called after delay after start up to clear off the welcome screen.
+ *
+ * After this, enable user input.
+ *
+ * @param data Nothing important
+ */
+static void _clear_and_enable_input(void* data) {
+    display_clear(Paint);
+    //
+    // Enable the user input controls...
+    // ZZZ
+    int disprow = 0;
+    display_string(disprow++, 0, "  Main Menu   ", false, true, Paint);
+
+    // Try to mount the SD Card and display the top level files/directories
+    FRESULT fr = dsk_mount_sd();
+    if (fr != FR_OK) {
+        error_printf("Cannot mount SD  FR: %d - %s\n", fr, FRESULT_str(fr));
+        return;
+    }
+    DIR dir;
+    FILINFO finfo;
+    // Open the root dir
+    char* dirpath = "/";
+    fr = f_opendir(&dir, dirpath);
+    if (fr != FR_OK) {
+        error_printf("Cannon open dir: '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
+        return;
+    }
+    // Get the first file
+    fr = f_findfirst(&dir, &finfo, dirpath, "*");
+    if (fr != FR_OK) {
+        error_printf("Cannon read dir (ff): '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
+        return;
+    }
+    if (finfo.fattrib & AM_DIR) {
+        strcat((char*)&finfo.fname, "/");
+    }
+    display_string(disprow++, 0, finfo.fname, false, false, Paint);
+    // Get the rest...
+    do {
+        fr = f_findnext(&dir, &finfo);
+        if (fr != FR_OK) {
+            error_printf("Cannon read dir (nf): '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
+            return;
+        }
+        if (finfo.fattrib & AM_DIR) {
+            strcat((char*)&finfo.fname, "/");
+        }
+        display_string(disprow++, 0, finfo.fname, false, false, Paint);
+    }
+    while (disprow < display_info().rows);
+}
+
 static void _display_proc_status(void* data) {
     // Output the current state
     for (int i = 0; i < 2; i++) {
@@ -109,6 +166,11 @@ static void _display_proc_status(void* data) {
     cmt_run_after_ms(7000, _display_proc_status, NULL);
 }
 
+
+// ############################################################################
+// Message Handlers
+// ############################################################################
+//
 static void _handle_hid_housekeeping(cmt_msg_t* msg) {
 }
 
@@ -232,7 +294,7 @@ static void _module_init(void) {
     // gpio_set_irq_enabled(IRQ_TOUCH, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 
     // Initialize the display
-    display_module_init();
+    display_module_init(true); // Initialize, and invert the display (as it is mounted upside down)
 }
 
 void start_hid(void) {
@@ -241,10 +303,14 @@ void start_hid(void) {
 
     // Setup the screen.
     display_clear(Paint);
-    display_string(0, 0, "Line 0.8901234567", false, Paint);
-    display_string(1, 1, "SD Programmer", false, Paint);
-    display_string(4, 1, "(C)2023-25", false, Paint);
-    display_string(5, 2, "AESilky", false, Paint);
+    display_string(0, 1, "SilkyDESIGN", false, false, Paint);
+    display_string(1, 2, "Programmer", false, false, Paint);
+    display_string(4, 3, "\0012023-25", false, false, Paint);
+    display_string(5, 3, "AESilky", false, false, Paint);
+    //
+    // Clear the display and enable user input after 5 seconds.
+    cmt_run_after_ms(2000, _clear_and_enable_input, NULL);
+
     //
     // Output status every 7 seconds
     cmt_run_after_ms(7000, _display_proc_status, NULL);

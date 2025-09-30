@@ -14,7 +14,7 @@
 
 #include "board.h"
 #include "debug_support.h"
-#include "picoutil.h"
+#include "picohlp/picoutil.h"
 
 #include "pico/multicore.h"
 #include "pico/util/queue.h"

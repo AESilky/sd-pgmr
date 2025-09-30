@@ -13,6 +13,7 @@ target_sources(cmt INTERFACE
 )
 
 target_link_libraries(cmt INTERFACE
+  picoutil
   pico_float
   pico_stdlib
 )

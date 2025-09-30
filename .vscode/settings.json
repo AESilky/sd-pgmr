@@ -11,12 +11,17 @@
         "cmdx",
         "dispops",
         "dispspi",
+        "dotw",
+        "dskops",
+        "FATFS",
         "hdlrs",
         "HRES",
         "hwrt",
         "LONGPRESS",
+        "MOSI",
         "multicore",
         "pbsw",
+        "picohlp",
         "PICOUTIL",
         "PRGMDEV",
         "sdpgmr",
@@ -24,6 +29,7 @@
         "slpmsg",
         "stdlib",
         "strnltonull",
-        "strskipws"
+        "strskipws",
+        "vhardware"
     ]
 }

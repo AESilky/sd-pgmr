@@ -221,7 +221,6 @@ extern char* str_value_create(const char* value);
  */
 extern int strcpynt(char* dest, const char* src, size_t maxchars);
 
-#if HAS_RP2040_RTC
 /**
  * @brief Format a date-time into a string.
  * @ingroup util
@@ -235,7 +234,6 @@ extern int strcpynt(char* dest, const char* src, size_t maxchars);
  * @param ctrl Control the format (one or more or'ed together)
  */
 extern void strdatetime(char* buf, uint bufsize, datetime_t* dt, strdatetime_ctrl_t ctrl);
-#endif
 
 /**
  * @brief Replace newline characters with '\000'.

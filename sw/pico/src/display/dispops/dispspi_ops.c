@@ -63,6 +63,7 @@ bool disp_data_op_start() {
 }
 
 void disp_op_end() {
+    _command_mode(false);
     _cs(false);
     board_op_end(boptkn);
 }

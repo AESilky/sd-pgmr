@@ -23,13 +23,17 @@
 #define OLED_COL_ADDR_HIGHx 0x10    // (0001 xxxx) High column address
 #define OLED_PAGE_ADDRx 0xB0        // (1011 xxxx) Page address
 #define OLED_DISP_START_LINEx 0x40  // (01 xxxxxx) Ram display line for COM0
-#define OLED_SEG_COL_MAPx 0xA0      // A0=Norml A1=Reverse
+#define OLED_SEG_COL_MAPx 0xA0      // A0=Normal A1=Reverse
+#define OLED_SEG_COL_MAP_NORM 0x00  //  The value to OR with the base command
+#define OLED_SEG_COL_MAP_REV  0x01  //  The value to OR with the base command
 #define OLED_MUX_RATIO 0xA8         // Next byte (0-63) is ratio
-#define OLED_COM_ROW_DIRx 0xC0      // (1100 D000) Scan D=0 0-n, D=1 n-0
+#define OLED_COM_ROW_DIRx 0xC0      // (1100 D000) Scan D=0 0-n, D=1 n-0 (C0|C8)
+#define OLED_COM_ROW_DIR_DNORM 0x00 //  The 'D' to OR with the base command
+#define OLED_COM_ROW_DIR_DREV  0x08 //  The 'D' to OR with the base command
 #define OLED_DISP_OFFSET 0xD3       // Next byte (0-63) is offset
 #define OLED_COM_PIN_CFG 0xDA       // Next byte controls common pads
 #define OLED_DISP_CLK_DIV 0xD5      // Next byte controls clock divider (see datasheet)
-#define OLED_PRECHARGE 0xD9         // Next byte controls precharge (Dis/Pre)
+#define OLED_PRECHARGE 0xD9         // Next byte controls pre-charge (Dis/Pre)
 #define OLED_VCOM_DESEL 0xDB        // Next byte controls VCOM deselect level
 #define OLED_CHARGE_PUMPx 0x32      // (0011 00xx) DC-DC output voltage
 //
@@ -50,6 +54,8 @@ render_area_t display_full_area = { start_col: 0, end_col : OLED_HRES - 1, start
 char display_full_screen_text[DISP_CHAR_LINES * DISP_CHAR_COLS];
 /*! @brief Memory area for the screen data pixel-bytes */
 uint8_t display_buf[OLED_BUF_LEN];
+
+display_info_t _dinfo;
 
 // ///////////////////////////////////////////////////////////////////////////////////
 // ////  Private/Local Methods                                                    ////
@@ -76,10 +82,12 @@ static void _display_clear() {
     }
 }
 
-static void _oled1106_module_init() {
+static void _oled1106_module_init(bool invert) {
     // Some of these commands are not strictly necessary as the reset
     // process defaults to some of these but they are all included
     // rather than rely on POR.
+    uint8_t col_dir_value = (invert ? OLED_SEG_COL_MAP_REV : OLED_SEG_COL_MAP_NORM);
+    uint8_t row_dir_value = (invert ? OLED_COM_ROW_DIR_DREV : OLED_COM_ROW_DIR_DNORM);
 
     // some configuration values are recommended by the board manufacturer
 
@@ -96,8 +104,8 @@ static void _oled1106_module_init() {
     oled1106_send_cmd(OLED_CONTRAST);
     oled1106_send_cmd(0x80);                        // Mid contrast to start
 
-    oled1106_send_cmd(OLED_SEG_COL_MAPx | 0x00);    // Normal segment/column mapping
-    oled1106_send_cmd(OLED_COM_ROW_DIRx | 0x00);    // Scan from 0 to n
+    oled1106_send_cmd(OLED_SEG_COL_MAPx | col_dir_value);    // Normal segment/column mapping (0=Normal 1=Reverse)
+    oled1106_send_cmd(OLED_COM_ROW_DIRx | row_dir_value);    // Vertical Scan direction
     oled1106_send_cmd(OLED_NORM_INVx | 0x00);       // Set normal
 
     oled1106_send_cmd(OLED_MUX_RATIO);
@@ -138,6 +146,14 @@ static void _oled1106_module_init() {
         oled1106_send_cmd(OLED_ENTIRE_ONx | 0x00); // go back to following RAM
         sleep_ms(250);
     }
+
+    // fill out our display info
+    _dinfo.colors = 1;
+    _dinfo.hres = OLED_HRES;
+    _dinfo.vres = OLED_VRES;
+    _dinfo.cols = DISP_CHAR_COLS;
+    _dinfo.rows = DISP_CHAR_LINES;
+    _dinfo.attrs = (DISP_ATTR_INVERSE | DISP_ATTR_UNDERLINE);
 }
 
 static void _write_buf(uint8_t* buf, size_t len) {
@@ -298,7 +314,7 @@ void display_clear(bool paint) {
  * 132 bits wide, even though the LCD panel is only 128. This means that we need to
  * start each bit-row at dot column 2 rather than 0.
  */
-void display_char(unsigned short int row, unsigned short int col, const char c, bool paint) {
+void display_char(unsigned short int row, unsigned short int col, const char c, bool underline, bool paint) {
     if (row >= DISP_CHAR_LINES || col >= DISP_CHAR_COLS) {
         return;  // Invalid row or column
     }
@@ -311,9 +327,9 @@ void display_char(unsigned short int row, unsigned short int col, const char c, 
     uint16_t offseth = (pagel + 1) * OLED_HRES;
     uint8_t shift = ((FONT_HEIGHT - OLED_PAGE_HEIGHT) * row) % OLED_PAGE_HEIGHT;
     uint16_t mask = (FONT_BIT_MASK << shift) ^ 0xFFFF;
-    uint16_t invert_mask = 0x0000;
+    uint16_t invert_mask = (underline ? 0x0200 : 0x0000);
     if (c & DISP_CHAR_INVERT_BIT) {
-        invert_mask = 0x03FF << shift;
+        invert_mask = ((invert_mask ^ 0x03FF) << shift);
     }
     for (int i = 0; i < FONT_WIDTH; i++) {
         uint16_t cdata = Font_Table[(cl * FONT_WIDTH) + i] << shift;
@@ -333,6 +349,10 @@ void display_char(unsigned short int row, unsigned short int col, const char c, 
     if (paint) {
         display_paint();
     }
+}
+
+const display_info_t display_info() {
+    return _dinfo;
 }
 
 /** @brief Paint the physical screen
@@ -420,7 +440,7 @@ void display_rows_scroll_up(unsigned short int row_t, unsigned short int row_b, 
  * @param invert True to invert the characters
  * @param paint True to paint the screen after the operation
  */
-void display_string(unsigned short int row, unsigned short int col, const char *pString, bool invert, bool paint) {
+void display_string(unsigned short int row, unsigned short int col, const char *pString, bool invert, bool underline, bool paint) {
     if (row >= DISP_CHAR_LINES || col >= DISP_CHAR_COLS) {
         return;  // Invalid row or column
     }
@@ -428,7 +448,7 @@ void display_string(unsigned short int row, unsigned short int col, const char *
         if (invert) {
             c = c ^ DISP_CHAR_INVERT_BIT;
         }
-        display_char(row, col, c, false);
+        display_char(row, col, c, underline, false);
         col++;
         if (col == DISP_CHAR_COLS) {
             col = 0;
@@ -452,7 +472,7 @@ void display_update(bool paint) {
     for (unsigned int r = 0; r < DISP_CHAR_LINES; r++) {
         for (unsigned int c = 0; c < DISP_CHAR_COLS; c++) {
             unsigned char d = *(display_full_screen_text + (r * DISP_CHAR_COLS) + c);
-            display_char(r, c, d, false);
+            display_char(r, c, d, false, false);
         }
         if (paint) {
             display_paint();
@@ -595,9 +615,9 @@ void display_font_test(void) {
 /*
  * This must be called before using the display.
  */
-void display_module_init(void) {
+void display_module_init(bool invert) {
     // run through the complete initialization process
-    _oled1106_module_init();
+    _oled1106_module_init(invert);
     display_clear(true);
 }
 

@@ -13435,7 +13435,7 @@
 			(net 5 "/RESET-")
 			(pinfunction "1")
 			(pintype "passive")
-			(uuid "0465efbd-e13a-4aed-910c-8be5f57ad86e")
+			(uuid "3d4b7f56-0cd1-4540-92ee-25a31cce4f37")
 		)
 		(pad "2" smd rect
 			(at -2.625 1.6 180)
@@ -13453,7 +13453,7 @@
 			(net 2 "GND")
 			(pinfunction "2")
 			(pintype "passive")
-			(uuid "8ec2ce27-af7b-4df3-945c-be531f49048d")
+			(uuid "9f168468-8199-43f3-8d27-580dd6c8991a")
 		)
 		(embedded_fonts no)
 		(model "${KICAD6_3DMODEL_DIR}/Button_Switch_SMD.3dshapes/SW_SPST_Omron_B3FS-100xP.wrl"
@@ -28179,7 +28179,7 @@
 		)
 		(polygon
 			(pts
-				(xy 202.761355 78.359) (xy 202.761355 134.366) (xy 77.031355 134.366) (xy 77.031355 134.366) (xy 77.031355 78.359)
+				(xy 202.761355 78.359) (xy 202.761355 134.366) (xy 77.031355 134.366) (xy 77.031355 78.359)
 			)
 		)
 		(filled_polygon

@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# CMake/Make build area
+**/build/
+
 # Object files
 *.o
 *.ko
@@ -50,6 +53,9 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Core dumps
+core
 
 # debug information files
 *.dwo

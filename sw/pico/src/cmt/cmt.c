@@ -423,7 +423,11 @@ void message_loop(msg_handler_fn fstart) {
             psa->retrieved = 0;
             psa_sec->t_active = psa->t_active;
             psa->t_active = 0;
-            psa_sec->interrupt_status = *nvic_hw->iser; // On Pico2 this is an array[2]
+            #if PICO_RP2350
+            psa_sec->interrupt_status = nvic_hw->iser[corenum]; // On RP2350 this is an array[2]
+            #else
+                psa_sec->interrupt_status = nvic_hw->iser;
+            #endif
             psa_sec->msg_longest = psa->msg_longest;
             psa_sec->t_msg_longest = psa->t_msg_longest;
             psa->msg_longest = MSG_NOOP;

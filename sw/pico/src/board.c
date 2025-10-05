@@ -27,6 +27,7 @@
 #include "pico/stdlib.h"
 #include "pico/mutex.h"
 #include "pico/printf.h"
+#include "hardware/gpio.h"
 #include "hardware/spi.h"
 #include "hardware/uart.h"
 
@@ -39,8 +40,12 @@
 /** @brief `bop_mutex` is used for performing Board Op control signal changes. */
 auto_init_mutex(bop_mutex);
 
-#define BUFSIZE 512
+#define BUFSIZE 256
 char _buf[BUFSIZE];
+
+bool _databus_is_out() {
+    return gpio_get_dir(DATA0); // We check DATA-0. All DATA bits direction are set as one.
+}
 
 /**
  * @brief Initialize the board
@@ -81,40 +86,33 @@ int board_init() {
     // GPIO Outputs (other than SPI, I2C, UART, and chip-selects
 
     //  Data Bus
+    //      Initially set them to input
     gpio_set_function(DATA0, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA0, GPIO_OUT);
+    gpio_set_dir(DATA0, GPIO_IN);
     gpio_set_drive_strength(DATA0, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA0, 0);
     gpio_set_function(DATA1, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA1, GPIO_OUT);
+    gpio_set_dir(DATA1, GPIO_IN);
     gpio_set_drive_strength(DATA1, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA1, 0);
 #if (DEBUG_SERIAL != 2)
     gpio_set_function(DATA2, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA2, GPIO_OUT);
+    gpio_set_dir(DATA2, GPIO_IN);
     gpio_set_drive_strength(DATA2, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA2, 0);
     gpio_set_function(DATA3, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA3, GPIO_OUT);
+    gpio_set_dir(DATA3, GPIO_IN);
     gpio_set_drive_strength(DATA3, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA3, 0);
 #endif
     gpio_set_function(DATA4, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA4, GPIO_OUT);
+    gpio_set_dir(DATA4, GPIO_IN);
     gpio_set_drive_strength(DATA4, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA4, 0);
     gpio_set_function(DATA5, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA5, GPIO_OUT);
+    gpio_set_dir(DATA5, GPIO_IN);
     gpio_set_drive_strength(DATA5, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA5, 0);
     gpio_set_function(DATA6, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA6, GPIO_OUT);
+    gpio_set_dir(DATA6, GPIO_IN);
     gpio_set_drive_strength(DATA6, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA6, 0);
     gpio_set_function(DATA7, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA7, GPIO_OUT);
+    gpio_set_dir(DATA7, GPIO_IN);
     gpio_set_drive_strength(DATA7, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(DATA7, 0);
     // Operation Address Bits
     gpio_set_function(OP8_BIT0, GPIO_FUNC_SIO);
     gpio_set_dir(OP8_BIT0, GPIO_OUT);
@@ -162,9 +160,9 @@ int board_init() {
     gpio_set_pulls(ROTARY_B_GPIO, true, false);
 #endif
     //    Rotary Encoder Switch Input
-    gpio_set_function(ROTARY_SW, GPIO_FUNC_SIO);
-    gpio_set_dir(ROTARY_SW, GPIO_IN);
-    gpio_set_pulls(ROTARY_SW, true, false);
+    gpio_set_function(ROTARY_SW_GPIO, GPIO_FUNC_SIO);
+    gpio_set_dir(ROTARY_SW_GPIO, GPIO_IN);
+    gpio_set_pulls(ROTARY_SW_GPIO, true, false);
     //    Command Attention (CMDATTN) Switch Input
     gpio_set_function(CMD_ATTN_SW_GPIO, GPIO_FUNC_SIO);
     gpio_set_dir(CMD_ATTN_SW_GPIO, GPIO_IN);
@@ -201,7 +199,6 @@ void board_op(boptkn_t boptkn, boardop_t bdop) {
     if (boptkn != &bop_mutex) {
         board_panic("board_op: Called with incorrect token: %p  Should be: %p\n", boptkn, &bop_mutex);
     }
-    bdop ^= 0xFFFFFFFF; // Temp, invert the value of the operation
     uint32_t op_bits = (bdop << OP8_BITS_SHIFT);
     gpio_put_masked(OP8_BITS_MASK, op_bits);
 }
@@ -227,12 +224,34 @@ void board_op_end(boptkn_t boptkn) {
 }
 
 bool rotary_switch_pressed() {
-    return (gpio_get(ROTARY_SW) == SWITCH_PRESSED);
+    return (gpio_get(ROTARY_SW_GPIO) == SWITCH_PRESSED);
 }
 
 bool cmdattn_switch_pressed() {
     return (gpio_get(CMD_ATTN_SW_GPIO) == SWITCH_PRESSED);
 }
+
+extern uint8_t pdatabus_rd() {
+    if (_databus_is_out()) {
+        pdatabus_set_in();
+    }
+    uint32_t rawvalue = gpio_get_all();
+    uint8_t value = (rawvalue & DATA_BUS_MASK) >> DATA_BUS_SHIFT;
+
+    return value;
+}
+
+void pdatabus_wr(uint8_t data) {
+    if (!_databus_is_out()) {
+        // Set the DATA Bus to outbound
+        gpio_set_dir_out_masked(DATA_BUS_MASK);
+    }
+    uint32_t bdval = data << DATA_BUS_SHIFT;
+    gpio_put_masked(DATA_BUS_MASK, bdval);
+}
+
+
+
 
 void debug_printf(const char* format, ...) {
     if (debug_mode_enabled()) {

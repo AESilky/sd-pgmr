@@ -14,8 +14,6 @@
 extern "C" {
 #endif
 
-extern void re_pbsw_irq_handler(uint32_t gpio, uint32_t events);
-
 /**
  * @brief Initialize the rotary encoder push-button switch library.
  * @ingroup ui

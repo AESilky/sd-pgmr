@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Initialize pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
-#set(PICO_PLATFORM "rp2350-arm-s")
-set(PICO_BOARD "pico2")
+#set(PICO_PLATFORM "rp2040-arm-s")
+set(PICO_BOARD "pico")
 set(PICO_USE_MALLOC_MUTEX 1)
 set(PICO_QUEUE_MAX_LEVEL 1)
 # Use fully-deoptimized debug build for true single-step and data viewing. Set to '0' for some optimizations
@@ -83,11 +83,13 @@ set(OUR_MODULES
   hid
   hwrt
   picoutil
+  prog_device
   rotary_encoder
   util
 )
 #
 add_subdirectory(cmt)
+add_subdirectory(deviceops)
 add_subdirectory(display)
 add_subdirectory(dskops)
 add_subdirectory(hid)
@@ -142,7 +144,9 @@ target_include_directories(sdpgmr PRIVATE
 target_link_libraries(sdpgmr
   ${OUR_MODULES}
   ${PICO_LIBS}
- )
+)
+#pico_set_linker_script(sdpgmr ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
+pico_add_extra_outputs(sdpgmr)
 
 #
 # Add executable (output) for Debug Serial Port Pins-1
@@ -166,7 +170,9 @@ target_include_directories(sdpgmr_db1 PRIVATE
 target_link_libraries(sdpgmr_db1
   ${OUR_MODULES}
   ${PICO_LIBS}
- )
+)
+#pico_set_linker_script(sdpgmr_db1 ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
+pico_add_extra_outputs(sdpgmr_db1)
 
 #
 # Add executable (output) for Debug Serial Port Pins-2
@@ -190,5 +196,7 @@ target_include_directories(sdpgmr_db2 PRIVATE
 target_link_libraries(sdpgmr_db2
   ${OUR_MODULES}
   ${PICO_LIBS}
- )
+)
+#pico_set_linker_script(sdpgmr_db2 ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
+pico_add_extra_outputs(sdpgmr_db2)
 

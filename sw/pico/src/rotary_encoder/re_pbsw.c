@@ -11,25 +11,47 @@
 #include "system_defs.h"
 #include "re_pbsw.h"
 
+#include "board.h"
 #include "cmt/cmt.h"
 
 #include <stdio.h>
 
-// static char event_str[128];
+// ====================================================================
+// Data Section
+// ====================================================================
 
-static void _gpio_event_string(char* buf, uint32_t events);
+static volatile bool _initialized;
 
-void re_pbsw_irq_handler(uint32_t gpio, uint32_t events) {
-    if (events & GPIO_IRQ_EDGE_FALL) {
-        cmt_msg_t msg;
-        cmt_msg_init(&msg, MSG_ROTARY_SW_PRESS);
-        postHWRTMsg(&msg);
-    }
-    if (events & GPIO_IRQ_EDGE_RISE) {
-        //printf("re switch released\n");
-    }
-}
+
+// ====================================================================
+// Local/Private Method Declarations
+// ====================================================================
+
+
+// ====================================================================
+// Message handler functions
+// ====================================================================
+
+
+// ====================================================================
+// Local/Private Methods
+// ====================================================================
+
+
+// ====================================================================
+// Public Methods
+// ====================================================================
+
+
+// ====================================================================
+// Initialization/Start-Up Methods
+// ====================================================================
+
 
 void re_pbsw_module_init() {
     // GPIO is initialized in `board.c` with the rest of the board.
+    if (_initialized) {
+        board_panic("!!! re_pbsw_module_init: Called more than once !!!");
+    }
+    _initialized = true;
 }

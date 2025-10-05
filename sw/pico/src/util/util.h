@@ -61,6 +61,10 @@ typedef unsigned int word;
 typedef bool boolean;
 typedef uint8_t byte;
 
+// Memory/Computer Sizes
+#define ONE_K (1024)
+#define ONE_M (ONE_K*ONE_K)
+
 // Some general purpose time constants
 #define ONE_SECOND_MS 1000
 #define ONE_SECOND_US (1000*ONE_SECOND_MS)

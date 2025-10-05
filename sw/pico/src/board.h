@@ -109,6 +109,33 @@ extern bool rotary_switch_pressed();
  */
 extern bool cmdattn_switch_pressed();
 
+/**
+ * @brief Read the value of the DATA Bus.
+ *
+ * @return uint8_t The value read.
+ */
+extern uint8_t pdatabus_rd();
+
+/**
+ * @brief Set the direction of the DATA Bus to inbound.
+ *
+ * This is used to put the DATA Bus to the inbound direction, which is safer
+ * than leaving it as outputs.
+ */
+static inline void pdatabus_set_in() {
+    // Set the DATA Bus to inbound
+    gpio_set_dir_in_masked(DATA_BUS_MASK);
+}
+
+/**
+ * @brief Set the PDATA bus to be outputs and set the value on the bus.
+ *
+ * @param data Data value to put on the bus
+ */
+extern void pdatabus_wr(uint8_t data);
+
+
+
 /** @brief Printf like function that includes the datetime and type prefix */
 extern void debug_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
 /** @brief Printf like function that includes the datetime and type prefix */

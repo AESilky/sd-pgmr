@@ -9,6 +9,12 @@
  * SPDX-License-Identifier: MIT License
  *
 */
+#ifndef HWRT_T_H_
+#define HWRT_T_H_
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #include <stdbool.h>
 
@@ -16,10 +22,9 @@
  * @brief Switch IDs
  */
 typedef enum _SWITCH_ID_ {
-    /** VALUE to indicate no switch pressed */
-    SW_NONE     = 0,
+    SW_ATTNCMD  = 0,
     SW_ROTARY   = 1,
-    SW_USER     = 2,
+    _SW_CNT     = 2
 } switch_id_t;
 
 /**
@@ -29,9 +34,16 @@ typedef enum _SWITCH_ID_ {
 typedef struct _sw_action_data_ {
     /** Switch ID */
     switch_id_t switch_id;
+    /** Long press if true */
+    bool longpress;
     /** Switch pressed. Otherwise, released. */
     bool pressed;
     /** Action is a 'repeat' */
     bool repeat;
 } switch_action_data_t;
 
+
+#ifdef __cplusplus
+}
+#endif
+#endif // HWRT_T_H_

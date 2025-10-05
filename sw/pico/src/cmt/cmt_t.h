@@ -36,13 +36,8 @@ typedef enum MSG_ID_ {
     MSG_EXEC,               // General purpose message that can be used when specifying a handler.
     MSG_CONFIG_CHANGED,
     MSG_DEBUG_CHANGED,
-    MSG_ROTARY_SW_PRESS,
-    MSG_ROTARY_SW_RELEASE,
-    MSG_CMDATTN_SW_PRESS,      // The 'User' Switch was pressed
-    MSG_CMDATTN_SW_RELEASE,
-    MSG_SW_DEBOUNCE,
     MSG_SW_ACTION,
-    MSG_SW_LONGPRESS,
+    MSG_SW_DEBOUNCE,
     MSG_SW_LONGPRESS_DELAY,
     MSG_TERM_CHAR_RCVD,
     //

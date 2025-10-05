@@ -87,6 +87,7 @@ extern "C" {
 #define DATA6                   16              // DP-21
 #define DATA7                   17              // DP-22
 #define DATA_BUS_MASK           0x0003FC00      // Mask to set all 8 bits at once: 0000 0000 0000 0011 1111 1100 0000 0000
+#define DATA_BUS_SHIFT          10              // Shift to move an 8-bit value up/down to/from the DATA Bus
 
 // UART Functions
 //
@@ -107,7 +108,7 @@ extern "C" {
 // This is a A/B quadrature encoder that can be decoded using a PIO (must be sequential)
 #define ROTARY_A_GPIO            0              // DP-1
 #define ROTARY_B_GPIO            1              // DP-2
-#define ROTARY_SW                8              // DP-11
+#define ROTARY_SW_GPIO           8              // DP-11
 // Command/Attention switch (separate from rotary encoder)
 #define CMD_ATTN_SW_GPIO        22              // DP-29
 
@@ -121,14 +122,18 @@ extern "C" {
 
 // IRQ Inputs
 //
-#define IRQ_CMD_ATTN_SW            CMD_ATTN_SW_GPIO
-#define IRQ_ROTARY_SW           ROTARY_SW       // DP-11
-#define IRQ_ROTARY_TURN         ROTARY_A_GPIO   // DP-1
+#define IRQ_CMD_ATTN_SW         CMD_ATTN_SW_GPIO
+#define IRQ_ROTARY_SW           ROTARY_SW_GPIO
+#define IRQ_ROTARY_TURN         ROTARY_A_GPIO
 
 // PWM - Used for a recurring interrupt for scheduled messages, sleep, housekeeping
+//    RP2040 has 8 slices, RP2350 has 12. Use the last slice.
 //
-#define CMT_PWM_RECINT_SLICE    11              // RP2040 has 8 slices, RP2350 has 12.
-
+#if PICO_RP2350
+#define CMT_PWM_RECINT_SLICE    11
+#else
+#define CMT_PWM_RECINT_SLICE     7
+#endif
 
 #ifdef __cplusplus
 }

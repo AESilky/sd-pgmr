@@ -86,7 +86,7 @@ bool debug_mode_enable(bool on) {
         cmt_msg_init(&msg, MSG_DEBUG_CHANGED);
         msg.data.debug = _debug_mode_enabled;
         postHWRTMsgDiscardable(&msg);
-        postHIDMsgDiscardable(&msg);
+        postAPPMsgDiscardable(&msg);
     }
     return (temp != on);
 }

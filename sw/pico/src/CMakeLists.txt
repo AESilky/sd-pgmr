@@ -96,7 +96,7 @@ include_directories(
 set(OUR_MODULES
   cmt
   display
-  hid
+  app
   hwrt
   picoutil
   prog_device
@@ -107,7 +107,7 @@ add_subdirectory(cmt)
 add_subdirectory(deviceops)
 add_subdirectory(display)
 add_subdirectory(dskops)
-add_subdirectory(hid)
+add_subdirectory(app)
 add_subdirectory(hwrt)
 add_subdirectory(lib)
 add_subdirectory(picohlp)

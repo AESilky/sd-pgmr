@@ -1,15 +1,15 @@
 /**
- * @brief Human Interface Device functionality.
- * @ingroup hid
+ * @brief Application functionality.
+ * @ingroup app
  *
- * Displays status and provide the human interface functions.
+ * Higher level application functions.
  *
  * Copyright 2023-25 AESilky
  *
  * SPDX-License-Identifier: MIT
  */
 
-#include "hid.h"
+#include "app.h"
 
 #include "board.h"
 #include "debug_support.h"
@@ -30,7 +30,7 @@
 // Constants Definitions
 // ############################################################################
 //
-#define HID_DISPLAY_BG              C16_BLACK
+#define APP_DISPLAY_BG              C16_BLACK
 
 
 // ############################################################################
@@ -40,7 +40,7 @@
 static void _show_psa(proc_status_accum_t* psa, int corenum);
 
 // Message handler functions...
-static void _handle_hid_housekeeping(cmt_msg_t* msg);
+static void _handle_app_housekeeping(cmt_msg_t* msg);
 //
 static void _handle_rotary_change(cmt_msg_t* msg);
 static void _handle_switch_action(cmt_msg_t* msg);
@@ -135,7 +135,7 @@ static void _display_proc_status(void* data) {
 // Message Handlers
 // ############################################################################
 //
-static void _handle_hid_housekeeping(cmt_msg_t* msg) {
+static void _handle_app_housekeeping(cmt_msg_t* msg) {
 }
 
 static void _handle_rotary_change(cmt_msg_t* msg) {
@@ -200,14 +200,14 @@ static void _module_init(void) {
     static bool _initialized = false;
 
     if (_initialized) {
-        board_panic("!!! HID _module_init already called. !!!");
+        board_panic("!!! APP _module_init already called. !!!");
     }
     _initialized = true;
 
     // Add our message handlers
     cmt_msg_hdlr_add(MSG_ROTARY_CHG, _handle_rotary_change);
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
-    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_hid_housekeeping);
+    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_app_housekeeping);
 
     pd_module_init();       // Programmable Device (Flash) module
 
@@ -215,8 +215,8 @@ static void _module_init(void) {
     display_module_init(true); // Initialize, and invert the display (as it is mounted upside down)
 }
 
-void start_hid(void) {
-    // Initialize modules used by the HID
+void start_app(void) {
+    // Initialize modules used by the APP
     _module_init();
 
     // Setup the screen.

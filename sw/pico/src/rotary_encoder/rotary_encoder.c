@@ -89,7 +89,7 @@ void re_turn_irq_handler(uint gpio, uint32_t events) {
         cmt_msg_t msg;
         cmt_msg_init(&msg, MSG_ROTARY_CHG);
         msg.data.value16 = _enc_delta;
-        postHIDMsgDiscardable(&msg);
+        postAPPMsgDiscardable(&msg);
     }
 }
 

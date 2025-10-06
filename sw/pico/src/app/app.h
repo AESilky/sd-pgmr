@@ -1,15 +1,15 @@
 /**
- * @brief Human Interface Device.
- * @ingroup hid
+ * @brief Application functionality.
+ * @ingroup app
  *
- * Display status and provide the human interface.
+ * Provide the application functionality.
  *
  * Copyright 2023-25 AESilky
  *
  * SPDX-License-Identifier: MIT
  */
-#ifndef HID_H_
-#define HID_H_
+#ifndef APP_H_
+#define APP_H_
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,14 +18,14 @@ extern "C" {
 #include <stdint.h>
 
 /**
- * @brief Starts the HID.
- * @ingroup hid
+ * @brief Starts the APP.
+ * @ingroup app
  *
  * This should be called after the messaging system is up and running.
  */
-extern void start_hid(void);
+extern void start_app(void);
 
 #ifdef __cplusplus
     }
 #endif
-#endif // HID_H_
+#endif // APP_H_

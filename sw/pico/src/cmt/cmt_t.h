@@ -26,7 +26,7 @@ extern "C" {
 
 // Keep the total number of messages under 256 to allow indexing into handlers.
 typedef enum MSG_ID_ {
-    // Common messages 0x00 - 0x5F (used by both HWRT and DCS/HID)
+    // Common messages 0x00 - 0x5F (used by both HWRT and DCS/APP)
     MSG_NOOP = 0x00,
     MSG_LOOP_STARTED,
     MSG_HWRT_STARTED,
@@ -47,9 +47,9 @@ typedef enum MSG_ID_ {
     MSG_ROTARY_CHG,
     MSG_STDIO_CHAR_READY,
     //
-    // Human Interface Devices (HID) messages 0xC0 - 0xFF
-    MSG_HID_NOOP = 0xC0,
-    MSG_HID_TEST,
+    // Application functionality (APP) messages 0xC0 - 0xFF
+    MSG_APP_NOOP = 0xC0,
+    MSG_APP_TEST,
     MSG_DISPLAY_MESSAGE,
 } msg_id_t;
 #define MSG_ID_CNT (0x100)

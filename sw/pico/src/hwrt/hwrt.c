@@ -16,7 +16,7 @@
 
 #include "cmt/cmt.h"
 #include "dskops/dskops.h"
-#include "hid/hid.h"
+#include "app/app.h"
 #include "rotary_encoder/re_pbsw.h"
 #include "rotary_encoder/rotary_encoder.h"
 #include "util.h"
@@ -127,7 +127,7 @@ static void _sw_debounce(cmt_msg_t* msg) {
         msg.data.sw_action.longpress = false;
         msg.data.sw_action.repeat = false;
         postHWRTMsg(&msg);
-        postHIDMsg(&msg);
+        postAPPMsg(&msg);
     }
 }
 
@@ -174,7 +174,7 @@ static void _handle_switch_longpress_delay(cmt_msg_t* msg) {
         msg.data.sw_action.longpress = true;
         msg.data.sw_action.repeat = repeat;
         postHWRTMsg(&msg);
-        postHIDMsg(&msg);
+        postAPPMsg(&msg);
         // Schedule another delay
         _schedule_longpress_delay(sw, true);
     }
@@ -231,7 +231,7 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
             msg.data.sw_action.longpress = false;
             msg.data.sw_action.repeat = false;
             postHWRTMsg(&msg);
-            postHIDMsg(&msg);
+            postAPPMsg(&msg);
         }
     }
 }
@@ -262,9 +262,9 @@ static void _core1_started(cmt_msg_t* msg) {
     }
     _core1_started = true;
 
-    // Launch the Human Interface Devices system
-    //  The HID starts other 'core-1' functionality.
-    start_hid();
+    // Launch the Application functionality
+    //  The APP starts other 'core-1' functionality.
+    start_app();
 }
 
 /**
@@ -301,7 +301,7 @@ static void _hwrt_started(cmt_msg_t* msg) {
     // Done with the Hardware Runtime Startup - Let the DSC know.
     cmt_msg_t msg2;
     cmt_msg_init(&msg2, MSG_HWRT_STARTED);
-    postHIDMsg(&msg2);
+    postAPPMsg(&msg2);
 
     // Post a TEST to ourself in case we have any tests set up.
     cmt_msg_t msg3;

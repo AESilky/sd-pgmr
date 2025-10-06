@@ -77,6 +77,8 @@ typedef uint8_t byte;
 #define TEN_MINUTES_MS 600000
 #define ONE_HOUR_MS 3600000
 
+#define Seconds_ms( n ) ( n * ONE_SECOND_MS )
+
 typedef enum _STRDATETIME_CTRL_ {
     SDTC_TIME               = 0x0001,
     SDTC_TIME_SECONDS       = 0x0003, // include seconds (implies time)

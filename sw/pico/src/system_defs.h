@@ -89,14 +89,6 @@ extern "C" {
 #define DATA_BUS_MASK           0x0003FC00      // Mask to set all 8 bits at once: 0000 0000 0000 0011 1111 1100 0000 0000
 #define DATA_BUS_SHIFT          10              // Shift to move an 8-bit value up/down to/from the DATA Bus
 
-// UART Functions
-//
-#define DEBUG_UART           uart0              // UART-0 is used for debug probe serial
-#define DEBUG1_TX                0              // DP-1 GPIO0 is used for debug1 TX
-#define DEBUG1_RX                1              // DP-2 GPIO1 is used for debug1 RX
-#define DEBUG2_TX               12              // DP-14 GPIO12 is used for debug2 TX
-#define DEBUG2_RX               13              // DP-15 GPIO13 is used for debug2 RX
-
 // PIO Blocks
 //
 #define PIO_ROTARY_BLOCK        pio1            // PIO Block 1 is used to decode the quadrature signal

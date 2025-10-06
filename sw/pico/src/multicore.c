@@ -10,7 +10,7 @@
 #include "multicore.h"
 #include "cmt/cmt.h"
 #include "hwrt/hwrt.h"  // For `core1_main`
-#include "util/util.h"  // For 'lowByte'
+#include "util.h"  // For 'lowByte'
 
 #include "board.h"
 #include "debug_support.h"

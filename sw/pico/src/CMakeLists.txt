@@ -10,8 +10,26 @@ set(CMAKE_CXX_STANDARD 17)
 set(PICO_BOARD "pico")
 set(PICO_USE_MALLOC_MUTEX 1)
 set(PICO_QUEUE_MAX_LEVEL 1)
-# Use fully-deoptimized debug build for true single-step and data viewing. Set to '0' for some optimizations
-set(PICO_DEOPTIMIZED_DEBUG 1)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  message(STATUS "Building in Debug mode. (EAS)")
+  # Use fully-deoptimized debug build for true single-step and data viewing.
+  set(PICO_DEOPTIMIZED_DEBUG 1)
+  # Add debug-specific compiler flags and definitions
+  add_compile_options(
+    -O0     # No optimizations
+  )
+  add_compile_definitions(DEBUG_MODE)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+  message(STATUS "Building in Release mode. (EAS)")
+  set(PICO_DEOPTIMIZED_DEBUG 0)
+  add_compile_options(
+    -O2     # Optimize
+  )
+  add_compile_definitions(NDEBUG)
+else()
+    message(STATUS "Building with unknown configuration: ${CMAKE_BUILD_TYPE}")
+endif()
+
 
 # Pull in SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -22,20 +40,24 @@ endif()
 
 # For debug output from USB (pass -DPICO_STDIO_USB=1) this ensures we don't lose any debug output while USB is set up
 if (NOT DEFINED PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS)
-    set(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS 3000)
+    set(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS 1500)
 endif()
+# Don't enable the UART STDIO globally. Enabling is handled in 'debug_support' in the code.
+set(PICO_STDIO_UART 0)
+# Don't enable the USB STDIO globally. Enabling is handled in 'debug_support' in the code.
+set(PICO_STDIO_USB 0)
+
 
 project(SD_Programmer C CXX ASM)
 
+
 add_compile_options(
-  -O0                       # No optimizations for now, for debugging
   -Wall
   -Wno-format               # int != int32_t as far as the compiler is concerned
   -Wno-unused-function
   -Wno-maybe-uninitialized
   #-H                       # list include header paths
 )
-# ZZZ Figure out how to set `PICO_DEBUG_MALLOC` only if 'debug build'
 add_compile_definitions(
   PICO_INCLUDE_RTC_DATETIME=1
   PICO_MALLOC_PANIC
@@ -49,18 +71,10 @@ add_compile_definitions(
   PICO_STDIO_USB_CONNECTION_WITHOUT_DTR
   PICO_STDIO_USB_SUPPORT_CHARS_AVAILABLE_CALLBACK
 )
+
 # Initialize the SDK
 pico_sdk_init()
 
-#
-# This binary can be built 3 ways. Because there aren't enough GPIOs to dedicate
-# a debugging serial port to a set of pins, this can be built as:
-#   1. No debug serial port
-#   2. Debug serial port on GPIO-0 & GPIO-1 (shared with the Rotary Encoder inputs)
-#   3. Debug serial port on GPIO-12 & GPIO-13 (shared with the Data Bus (D2 & D3))
-#
-# The following defines are used for the 3 targets.
-#
 set(VERSION "1.0")
 set(NAME_BASE "SD_Programmer")
 # Add the required include file paths to the build
@@ -74,6 +88,8 @@ include_directories(
   ${PICO_SDK_PATH}/src/rp2_common/hardware_pwm/include
   ${PICO_SDK_PATH}/src/rp2_common/hardware_rtc/include
   ${PICO_SDK_PATH}/src/rp2_common/pico_multicore/include
+  ${PICO_SDK_PATH}/src/rp2_common/pico_stdio_uart/include
+  ${PICO_SDK_PATH}/src/rp2_common/pico_stdio_usb/include
 )
 
 # Our Modules
@@ -85,7 +101,6 @@ set(OUR_MODULES
   picoutil
   prog_device
   rotary_encoder
-  util
 )
 #
 add_subdirectory(cmt)
@@ -97,7 +112,6 @@ add_subdirectory(hwrt)
 add_subdirectory(lib)
 add_subdirectory(picohlp)
 add_subdirectory(rotary_encoder)
-add_subdirectory(util)
 #
 # External libraries
 #add_subdirectory(lib)
@@ -113,6 +127,8 @@ set(PICO_LIBS
   hardware_timer
   pico_multicore
   pico_stdlib
+  pico_stdio_uart
+  pico_stdio_usb
 )
 #
 # Top-level sources
@@ -120,23 +136,22 @@ set(PICO_LIBS
 set(TL_SRC
 main.c
 board.c
+debug_hw.c
 debug_support.c
 multicore.c
+util.c
 )
 
 #
-# Add executable (output) for No Debug Serial Port
+# Add executable (output) for Debug Mode disabled by default
 #
 add_executable(sdpgmr
   ${TL_SRC}
 )
 pico_set_program_name(sdpgmr ${NAME_BASE})
 pico_set_program_version(sdpgmr ${VERSION})
-# Done use any stdio.
-pico_enable_stdio_uart(sdpgmr 0)
-pico_enable_stdio_usb(sdpgmr 0)
 target_compile_definitions(sdpgmr PRIVATE
-	DEBUG_SERIAL=0
+	DEBUG_MODE=0
 )
 target_include_directories(sdpgmr PRIVATE
 	${CMAKE_CURRENT_LIST_DIR}
@@ -148,55 +163,24 @@ target_link_libraries(sdpgmr
 #pico_set_linker_script(sdpgmr ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
 pico_add_extra_outputs(sdpgmr)
 
+
 #
-# Add executable (output) for Debug Serial Port Pins-1
+# Add executable (output) for Debug Mode enabled by default
 #
-add_executable(sdpgmr_db1
+add_executable(sdpgmr_db
   ${TL_SRC}
 )
-pico_set_program_name(sdpgmr_db1 "${NAME_BASE}_DB1")
-pico_set_program_version(sdpgmr_db1 ${VERSION})
-# Done use any stdio.
-pico_enable_stdio_uart(sdpgmr_db1 1)
-pico_enable_stdio_usb(sdpgmr_db1 0)
-target_compile_definitions(sdpgmr_db1 PRIVATE
-	DEBUG_SERIAL=1
-  PICO_DEFAULT_UART_TX_PIN=0
-  PICO_DEFAULT_UART_RX_PIN=1
+pico_set_program_name(sdpgmr_db "${NAME_BASE}_DB")
+pico_set_program_version(sdpgmr_db ${VERSION})
+target_compile_definitions(sdpgmr_db PRIVATE
+	DEBUG_MODE=1
 )
-target_include_directories(sdpgmr_db1 PRIVATE
+target_include_directories(sdpgmr_db PRIVATE
 	${CMAKE_CURRENT_LIST_DIR}
 )
-target_link_libraries(sdpgmr_db1
+target_link_libraries(sdpgmr_db
   ${OUR_MODULES}
   ${PICO_LIBS}
 )
-#pico_set_linker_script(sdpgmr_db1 ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
-pico_add_extra_outputs(sdpgmr_db1)
-
-#
-# Add executable (output) for Debug Serial Port Pins-2
-#
-add_executable(sdpgmr_db2
-  ${TL_SRC}
-)
-pico_set_program_name(sdpgmr_db2 "${NAME_BASE}_DB1")
-pico_set_program_version(sdpgmr_db2 ${VERSION})
-# Done use any stdio.
-pico_enable_stdio_uart(sdpgmr_db2 1)
-pico_enable_stdio_usb(sdpgmr_db2 0)
-target_compile_definitions(sdpgmr_db2 PRIVATE
-	DEBUG_SERIAL=2
-  PICO_DEFAULT_UART_TX_PIN=12
-  PICO_DEFAULT_UART_RX_PIN=13
-)
-target_include_directories(sdpgmr_db2 PRIVATE
-	${CMAKE_CURRENT_LIST_DIR}
-)
-target_link_libraries(sdpgmr_db2
-  ${OUR_MODULES}
-  ${PICO_LIBS}
-)
-#pico_set_linker_script(sdpgmr_db2 ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
-pico_add_extra_outputs(sdpgmr_db2)
-
+#pico_set_linker_script(sdpgmr_db ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
+pico_add_extra_outputs(sdpgmr_db)

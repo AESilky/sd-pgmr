@@ -22,7 +22,7 @@
 
 #include "board.h"
 #include "cmt/cmt_t.h"
-#include "util/util.h"
+#include "util.h"
 
 #include "pico/types.h"
 

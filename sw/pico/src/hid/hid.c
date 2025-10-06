@@ -12,6 +12,8 @@
 #include "hid.h"
 
 #include "board.h"
+#include "debug_support.h"
+#include "util.h"
 
 #include "deviceops/prog_device.h"
 #include "deviceops/pdops.h"
@@ -124,8 +126,8 @@ static void _display_proc_status(void* data) {
         _show_psa(&psa, i);
     }
     // Do 'other' status
-    // Output status every 7 seconds
-    cmt_run_after_ms(7000, _display_proc_status, NULL);
+    // Output status every 16 seconds
+    cmt_run_after_ms(Seconds_ms(16), _display_proc_status, NULL);
 }
 
 
@@ -230,4 +232,11 @@ void start_hid(void) {
     //
     // Output status every 7 seconds
     cmt_run_after_ms(7000, _display_proc_status, NULL);
+
+    //
+    // Done with Apps Startup - Let the Runtime know.
+    cmt_msg_t msg;
+    cmt_msg_init(&msg, MSG_APPS_STARTED);
+    postHWRTMsg(&msg);
+
 }

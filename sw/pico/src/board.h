@@ -26,6 +26,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+#define SHARED_PRINT_BUF_SIZE 256
+extern char shared_print_buf[SHARED_PRINT_BUF_SIZE];
+
 typedef enum BOARD_OP {
     BDO_NONE = OP8_NONE,
     BDO_ADDR_LOW_LD = OP8_ADDRL_LD,
@@ -36,6 +39,7 @@ typedef enum BOARD_OP {
     BDO_DISPLAY_RST = OP8_DISP_RST,
     BDO_DISPLAY_CTRL = OP8_DISP_CTRL
 } boardop_t;
+
 
 /**
  * @brief Alias for a mutex_t pointer. Used to control access to Board Operations.
@@ -110,6 +114,29 @@ extern bool rotary_switch_pressed();
 extern bool cmdattn_switch_pressed();
 
 /**
+ * @brief Allow / Don't Allow Diagnostic output.
+ *
+ * Diagnostic output is from:
+ * 1) debug_printf (this is also controlled by the debug flag)
+ * 2) error_printf
+ * 3) info_printf
+ * 4) warn_printf
+ *
+ * @param enable True to allow, False to not allow
+ */
+extern void diagout_enable(bool enable);
+
+/**
+ * @brief Get the state of the Diagnostic Enabled flag.
+ *
+ * @see diagout_enable for a list of what this controls.
+ *
+ * @return true Diagnostic output is enabled
+ * @return false Diagnostic output is not enabled
+ */
+extern bool diagout_is_enabled();
+
+/**
  * @brief Read the value of the DATA Bus.
  *
  * @return uint8_t The value read.
@@ -135,9 +162,6 @@ static inline void pdatabus_set_in() {
 extern void pdatabus_wr(uint8_t data);
 
 
-
-/** @brief Printf like function that includes the datetime and type prefix */
-extern void debug_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
 /** @brief Printf like function that includes the datetime and type prefix */
 extern void error_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
 /** @brief Printf like function that includes the datetime and type prefix */

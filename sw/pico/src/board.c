@@ -21,27 +21,30 @@
 #include "board.h"
 
 #include "debug_support.h"
-#include "util/util.h"
+#include "util.h"
 
 #include "pico/stdio.h"
 #include "pico/stdlib.h"
 #include "pico/mutex.h"
-#include "pico/printf.h"
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
 #include "hardware/uart.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 
 // ////////////////////////
 // /// Board Level Data ///
 // ////////////////////////
 //
+
+volatile bool _diagout_disabled;
+
+char shared_print_buf[SHARED_PRINT_BUF_SIZE];
+
+
 /** @brief `bop_mutex` is used for performing Board Op control signal changes. */
 auto_init_mutex(bop_mutex);
-
-#define BUFSIZE 256
-char _buf[BUFSIZE];
 
 bool _databus_is_out() {
     return gpio_get_dir(DATA0); // We check DATA-0. All DATA bits direction are set as one.
@@ -64,11 +67,6 @@ int board_init() {
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
-
-#if (DEBUG_SERIAL != 0)
-    stdio_init_all();
-    sleep_ms(80); // Ok to `sleep` as msg system not started
-#endif
 
     // SPI 0 Pins for MircoSD Card and Display
     gpio_set_function(SPI_SD_DISP_SCK, GPIO_FUNC_SPI);
@@ -93,14 +91,15 @@ int board_init() {
     gpio_set_function(DATA1, GPIO_FUNC_SIO);
     gpio_set_dir(DATA1, GPIO_IN);
     gpio_set_drive_strength(DATA1, GPIO_DRIVE_STRENGTH_2MA);
-#if (DEBUG_SERIAL != 2)
-    gpio_set_function(DATA2, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA2, GPIO_IN);
-    gpio_set_drive_strength(DATA2, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA3, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA3, GPIO_IN);
-    gpio_set_drive_strength(DATA3, GPIO_DRIVE_STRENGTH_2MA);
-#endif
+    //
+    // Don't initialize DATA 2 or 3 at this time, as they are used for the initial UART stdio.
+    //
+    // gpio_set_function(DATA2, GPIO_FUNC_SIO);
+    // gpio_set_dir(DATA2, GPIO_IN);
+    // gpio_set_drive_strength(DATA2, GPIO_DRIVE_STRENGTH_2MA);
+    // gpio_set_function(DATA3, GPIO_FUNC_SIO);
+    // gpio_set_dir(DATA3, GPIO_IN);
+    // gpio_set_drive_strength(DATA3, GPIO_DRIVE_STRENGTH_2MA);
     gpio_set_function(DATA4, GPIO_FUNC_SIO);
     gpio_set_dir(DATA4, GPIO_IN);
     gpio_set_drive_strength(DATA4, GPIO_DRIVE_STRENGTH_2MA);
@@ -131,14 +130,17 @@ int board_init() {
     gpio_set_dir(OP_DEVICE_PWR, GPIO_OUT);
     gpio_set_drive_strength(OP_DEVICE_PWR, GPIO_DRIVE_STRENGTH_2MA);
     gpio_put(OP_DEVICE_PWR, 0);
-    gpio_set_function(OP_DATA_RD, GPIO_FUNC_SIO);
-    gpio_set_dir(OP_DATA_RD, GPIO_OUT);
-    gpio_set_drive_strength(OP_DATA_RD, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DATA_RD, 0);
+    //
+    // DP_DATA_RD is initialized in the debug init (debug_hw.c)
+    //
+    // gpio_set_function(OP_DATA_RD, GPIO_FUNC_SIO);
+    // gpio_set_dir(OP_DATA_RD, GPIO_OUT);
+    // gpio_set_drive_strength(OP_DATA_RD, GPIO_DRIVE_STRENGTH_2MA);
+    // gpio_put(OP_DATA_RD, 1);
     gpio_set_function(OP_DATA_WR, GPIO_FUNC_SIO);
     gpio_set_dir(OP_DATA_WR, GPIO_OUT);
     gpio_set_drive_strength(OP_DATA_WR, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DATA_WR, 0);
+    gpio_put(OP_DATA_WR, 1);
     gpio_set_function(OP_DATA_LATCH, GPIO_FUNC_SIO);
     gpio_set_dir(OP_DATA_LATCH, GPIO_OUT);
     gpio_set_drive_strength(OP_DATA_LATCH, GPIO_DRIVE_STRENGTH_2MA);
@@ -146,19 +148,17 @@ int board_init() {
     gpio_set_function(OP_DEVICE_WR, GPIO_FUNC_SIO);
     gpio_set_dir(OP_DEVICE_WR, GPIO_OUT);
     gpio_set_drive_strength(OP_DEVICE_WR, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DEVICE_WR, 0);
+    gpio_put(OP_DEVICE_WR, 1);
 
     // GPIO Inputs
 
     //    Rotary Encoder Input
-#if (DEBUG_SERIAL != 1)
     gpio_set_function(ROTARY_A_GPIO, GPIO_FUNC_SIO);
     gpio_set_dir(ROTARY_A_GPIO, GPIO_IN);
     gpio_set_pulls(ROTARY_A_GPIO, true, false);
     gpio_set_function(ROTARY_B_GPIO, GPIO_FUNC_SIO);
     gpio_set_dir(ROTARY_B_GPIO, GPIO_IN);
     gpio_set_pulls(ROTARY_B_GPIO, true, false);
-#endif
     //    Rotary Encoder Switch Input
     gpio_set_function(ROTARY_SW_GPIO, GPIO_FUNC_SIO);
     gpio_set_dir(ROTARY_SW_GPIO, GPIO_IN);
@@ -223,12 +223,20 @@ void board_op_end(boptkn_t boptkn) {
     mutex_exit(&bop_mutex);
 }
 
-bool rotary_switch_pressed() {
-    return (gpio_get(ROTARY_SW_GPIO) == SWITCH_PRESSED);
-}
-
 bool cmdattn_switch_pressed() {
     return (gpio_get(CMD_ATTN_SW_GPIO) == SWITCH_PRESSED);
+}
+
+void diagout_enable(bool enable) {
+    _diagout_disabled = !enable;
+}
+
+bool diagout_is_enabled() {
+    return !_diagout_disabled;
+}
+
+bool rotary_switch_pressed() {
+    return (gpio_get(ROTARY_SW_GPIO) == SWITCH_PRESSED);
 }
 
 extern uint8_t pdatabus_rd() {
@@ -252,52 +260,43 @@ void pdatabus_wr(uint8_t data) {
 
 
 
-
-void debug_printf(const char* format, ...) {
-    if (debug_mode_enabled()) {
+void error_printf(const char* format, ...) {
+    if (!_diagout_disabled) {
         int index = 0;
         va_list xArgs;
         va_start(xArgs, format);
-        index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
+        index += vsnprintf(&shared_print_buf[index], SHARED_PRINT_BUF_SIZE - index, format, xArgs);
         va_end(xArgs);
-#if (DEBUG_SERIAL != 0)
-        printf("%s", _buf);
-#endif
+        printf("%s", shared_print_buf);
+        stdio_flush();
     }
 }
 
-void error_printf(const char* format, ...) {
-    int index = 0;
-    va_list xArgs;
-    va_start(xArgs, format);
-    index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
-    va_end(xArgs);
-#if (DEBUG_SERIAL != 0)
-    printf("%s", _buf);
-#endif
-}
-
 void info_printf(const char* format, ...) {
-    int index = 0;
-    va_list xArgs;
-    va_start(xArgs, format);
-    index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
-    va_end(xArgs);
-#if (DEBUG_SERIAL != 0)
-    printf("%s", _buf);
-#endif
+    if (!_diagout_disabled) {
+        int index = 0;
+        va_list xArgs;
+        va_start(xArgs, format);
+        index += vsnprintf(&shared_print_buf[index], SHARED_PRINT_BUF_SIZE - index, format, xArgs);
+        va_end(xArgs);
+        printf("%s", shared_print_buf);
+        stdio_flush();
+    }
 }
 
 void warn_printf(const char* format, ...) {
-    int index = 0;
-    va_list xArgs;
-    va_start(xArgs, format);
-    index += vsnprintf(&_buf[index], BUFSIZE - index, format, xArgs);
-    va_end(xArgs);
-#if (DEBUG_SERIAL != 0)
-    printf("%s", _buf);
-#endif
+    if (!_diagout_disabled) {
+        int index = 0;
+        va_list xArgs;
+        va_start(xArgs, format);
+        index += vsnprintf(&shared_print_buf[index], SHARED_PRINT_BUF_SIZE - index, format, xArgs);
+        va_end(xArgs);
+        printf("%s", shared_print_buf);
+        stdio_flush();
+    }
 }
+
+
 
 void board_panic(const char* fmt, ...) {
     // Turn the LED on before the panic

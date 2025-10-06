@@ -30,7 +30,7 @@ typedef enum MSG_ID_ {
     MSG_NOOP = 0x00,
     MSG_LOOP_STARTED,
     MSG_HWRT_STARTED,
-    MSG_HID_STARTED,
+    MSG_APPS_STARTED,
     MSG_PERIODIC_RT,        // Periodic Repeating Time - Every 16ms (62.5Hz)
     MSG_CMT_SLEEP,
     MSG_EXEC,               // General purpose message that can be used when specifying a handler.

@@ -45,13 +45,13 @@ int main() {
     // useful information for picotool
     bi_decl(bi_program_description("SilkyDESIGN Flash Programmer"));
 
+    // Initialize debug
+    debug_init(DIM_BOOT);
+
     // Board/base level initialization
     if (board_init() != 0) {
         board_panic("Board init failed.");
     }
-#if (DEBUG_SERIAL != 0)
-    debug_mode_enable(true);
-#endif
 
     led_on_off(say_hi);
 

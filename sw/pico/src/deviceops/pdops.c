@@ -43,7 +43,7 @@ void pdo_addr_set(uint32_t addr) {
     board_op(tkn, BDO_ADDR_MID_LD);
     sleep_ms(1);
     board_op(tkn, BDO_NONE);
-    pdatabus_wr(addrL);
+    pdatabus_wr(addrH);
     sleep_ms(1);
     board_op(tkn, BDO_ADDR_LOW_LD);
     sleep_ms(1);

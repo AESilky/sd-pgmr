@@ -6,11 +6,73 @@
  */
 #include "debug_support.h"
 
+#include "board.h"
+
 #include "cmt/cmt.h"
-#include "util/util.h"
+#include "util.h"
+
+#include "pico/printf.h"
+#include "pico/stdio_uart.h"
+#include "pico/stdio_usb.h"
+
+#include <stdlib.h>
+
+#ifdef uart_default
+  #undef uart_default
+#endif
 
 volatile uint16_t debugging_flags = 0;
 static bool _debug_mode_enabled = false;
+
+
+void debug_init(debug_init_mode_t mode) {
+    switch (mode) {
+    case DIM_BOOT:
+        // Init an input switch
+        // Init UART0
+        // Connect STDIO to UART0
+        // Read switch to set debug enabled flag
+        debug_sw_init();
+        debug_uart_init();
+        sleep_ms(80); // Ok to `sleep` as msg system not started
+        // Check the switch
+        bool pressed = debug_sw_pressed();
+#if (DEBUG_MODE != 0)
+// In debug build, set debug flag unless switch pressed
+        debug_mode_enable(!pressed);
+#else
+// In release build, set debug flag if switch pressed
+        debug_mode_enable(pressed);
+#endif
+        debug_printf("Debug initialized\n");
+        break;
+    case DIM_STDIO_TO_USB:
+        stdio_flush();
+        sleep_ms(8);
+        // Switch STDIO from the UART to the USB
+        stdio_set_driver_enabled(&stdio_uart, false);
+        sleep_ms(2); // Short sleep ok
+        stdio_usb_init();
+        nondb_gpio_init(); // Init the GPIO that was skipped to allow UART
+        break;
+    case DIM_STDIO_TO_USB_DIUART:
+        stdio_flush();
+        sleep_ms(8);
+        // Switch STDIO from the UART to the USB and deinit the UART
+        stdio_uart_deinit();
+        sleep_ms(2);
+        stdio_usb_init();
+        nondb_gpio_init(); // Init the GPIO that was skipped to allow UART
+        break;
+    case DIM_REMOVE_STDIO:
+        // Remove STDIO from both the UART and the USB
+        stdio_set_driver_enabled(&stdio_uart, false);
+        stdio_set_driver_enabled(&stdio_usb, false);
+        nondb_gpio_init(); // Init the GPIO that was skipped to allow UART
+        break;
+    }
+}
+
 
 bool debug_mode_enabled() {
     return _debug_mode_enabled;
@@ -27,6 +89,20 @@ bool debug_mode_enable(bool on) {
         postHIDMsgDiscardable(&msg);
     }
     return (temp != on);
+}
+
+
+
+void debug_printf(const char* format, ...) {
+    if (debug_mode_enabled() && diagout_is_enabled()) {
+        int index = 0;
+        va_list xArgs;
+        va_start(xArgs, format);
+        index += vsnprintf(&shared_print_buf[index], SHARED_PRINT_BUF_SIZE - index, format, xArgs);
+        va_end(xArgs);
+        printf("%s", shared_print_buf);
+        stdio_flush();
+    }
 }
 
 /**

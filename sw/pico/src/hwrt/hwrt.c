@@ -19,7 +19,7 @@
 #include "hid/hid.h"
 #include "rotary_encoder/re_pbsw.h"
 #include "rotary_encoder/rotary_encoder.h"
-#include "util/util.h"
+#include "util.h"
 
 #include "hardware/gpio.h"
 #include "pico/stdlib.h"
@@ -28,7 +28,7 @@
 
 #define _HWRT_STATUS_PULSE_PERIOD 6999
 
-static volatile bool _dcs_started = false;
+static volatile bool _apps_started = false;
 
 typedef bool (*sw_pressed_fn)(void);
 
@@ -39,27 +39,56 @@ static msg_handler_fn _sw_longpress_delay[_SW_CNT] = { _handle_switch0_longpress
 static bool _sw_pressed[_SW_CNT];
 static sw_pressed_fn _sw_pressed_fn[_SW_CNT] = { cmdattn_switch_pressed, rotary_switch_pressed };
 
-// Interrupt handler functions...
+// Interrupt handler methods...
 static void _gpio_irq_handler(uint gpio, uint32_t events);
 static void _sw_irq_handler(switch_id_t sw, uint32_t events);
 
-// Message handler functions...
+// Message handler methods...
 static void _handle_hwrt_housekeeping(cmt_msg_t* msg);
 static void _handle_hwrt_test(cmt_msg_t* msg);
-static void _handle_dcs_started(cmt_msg_t* msg);
+static void _handle_apps_started(cmt_msg_t* msg);
 
 
 // ====================================================================
-// Message handler functions
+// Run after delay methods
 // ====================================================================
 
-static void _handle_dcs_started(cmt_msg_t* msg) {
-    // The DCS has reported that it is initialized.
+static void _debug_usb_announce(void* data) {
+    // Debugging has switched over to the USB. Say hello...
+    debug_printf("DEBUG output now on the USB\n");
+}
+
+static void _debug_switch_to_usb(void* data) {
+    // Switch debugging over to the USB so we can safely use the PD bus
+    debug_printf("Switching DEBUG output to the USB\n");
+    debug_init(DIM_STDIO_TO_USB_DIUART);
+    cmt_run_after_ms(3000, _debug_usb_announce, NULL);
+}
+
+
+// ====================================================================
+// Message handler methods
+// ====================================================================
+
+static void _handle_apps_started(cmt_msg_t* msg) {
+    // The Apps (on core1) has reported that it is initialized.
     // Since we are responding to a message, it means we
     // are also initialized, so -
     //
     // Start things running.
-    _dcs_started = true;
+    _apps_started = true;
+
+    // Initialize other modules that the RT oversees.
+    //
+    re_pbsw_module_init();  // Rotary Encoder Push-Button Switch module
+    re_module_init();       // Rotary Encoder (knob) module
+    gpio_set_irq_enabled_with_callback(IRQ_ROTARY_TURN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
+    gpio_set_irq_enabled(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(IRQ_CMD_ATTN_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+
+    // Let the USB subsystem have some time to come up, then
+    // Switch debugging over to the USB so we can safely use the PD bus
+    cmt_run_after_ms(800, _debug_switch_to_usb, NULL);
 }
 
 /**
@@ -158,7 +187,7 @@ static void _handle_switch1_longpress_delay(cmt_msg_t* msg) {
 }
 
 // ====================================================================
-// Hardware operational functions
+// Hardware operational methods
 // ====================================================================
 
 
@@ -209,13 +238,13 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
 
 
 // ====================================================================
-// Initialization and Startup functions
+// Initialization and Startup methods
 // ====================================================================
 
 static void _hwrt_module_init() {
+    cmt_msg_hdlr_add(MSG_APPS_STARTED, _handle_apps_started);
     cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_hwrt_housekeeping);
     cmt_msg_hdlr_add(MSG_HWRT_TEST, _handle_hwrt_test);
-    cmt_msg_hdlr_add(MSG_HID_STARTED, _handle_dcs_started);
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
 }
 
@@ -266,14 +295,7 @@ static void _hwrt_started(cmt_msg_t* msg) {
     // Initialize now that the message loop is running.
     _hwrt_module_init();
 
-    // Initialize other modules that the RT will oversee.
-    //
     dskops_module_init();   // Make the Disk Operations available
-    re_pbsw_module_init();  // Rotary Encoder Push-Button Switch module
-    re_module_init();       // Rotary Encoder (knob) module
-    gpio_set_irq_enabled_with_callback(IRQ_ROTARY_TURN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
-    gpio_set_irq_enabled(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(IRQ_CMD_ATTN_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 
     //
     // Done with the Hardware Runtime Startup - Let the DSC know.

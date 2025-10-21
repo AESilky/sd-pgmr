@@ -7,6 +7,7 @@ target_sources(app INTERFACE
 
 target_link_libraries(prog_device INTERFACE
     dskops
+    shell
     prog_device
     pico_stdlib
 )

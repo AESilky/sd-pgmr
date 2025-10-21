@@ -11,6 +11,7 @@
 #include "cmt/cmt.h"
 #include "util.h"
 
+#include "tusb.h"
 #include "pico/printf.h"
 #include "pico/stdio_uart.h"
 #include "pico/stdio_usb.h"
@@ -44,6 +45,9 @@ void debug_init(debug_init_mode_t mode) {
 // In release build, set debug flag if switch pressed
         debug_mode_enable(pressed);
 #endif
+        // initialize TinyUSB so that it's ready later.
+        tusb_init();
+
         debug_printf("Debug initialized\n");
         break;
     case DIM_STDIO_TO_USB:

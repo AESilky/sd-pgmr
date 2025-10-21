@@ -15,6 +15,7 @@
 #include "debug_support.h"
 #include "util.h"
 
+#include "shell/shell.h"
 #include "deviceops/prog_device.h"
 #include "deviceops/pdops.h"
 #include "dskops/dskops.h"
@@ -115,6 +116,13 @@ static void _clear_and_enable_input(void* data) {
         display_string(disprow++, 0, finfo.fname, false, false, Paint);
     }
     while (disprow < display_info().rows);
+
+
+    // Initialize the shell
+    shell_module_init();
+    //
+    // Built the shell
+    shell_build();
 }
 
 static void _display_proc_status(void* data) {
@@ -185,6 +193,7 @@ static void _show_psa(proc_status_accum_t* psa, int corenum) {
     float core_temp = 0.0f; // onboard_temp_c();
     debug_printf("PSA %d: Active: % 3.2f%%\t At:%ld\tMR:%d\t Temp: %3.1f\t Msg: %03X Msgt: %ld\t Int:%08x\n", corenum, busy, active, retrieved, core_temp, msg_id, msg_t, interrupt_status);
 }
+
 
 // ############################################################################
 // Public Functions

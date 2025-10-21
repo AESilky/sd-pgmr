@@ -1,7 +1,7 @@
 /**
  * @brief OLED Display Panel Module for 1106 Display. I2C or SPI is selected by build/link.
  *
- * Copyright 2023 AESilky
+ * Copyright 2023-25 AESilky
  *
  * SPDX-License-Identifier: MIT
  */

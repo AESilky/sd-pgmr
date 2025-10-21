@@ -40,8 +40,12 @@ endif()
 
 # For debug output from USB (pass -DPICO_STDIO_USB=1) this ensures we don't lose any debug output while USB is set up
 if (NOT DEFINED PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS)
-    set(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS 1500)
+    set(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS 2500)
 endif()
+if (NOT DEFINED PICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS)
+    set(PICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS 15)
+endif()
+
 # Don't enable the UART STDIO globally. Enabling is handled in 'debug_support' in the code.
 set(PICO_STDIO_UART 0)
 # Don't enable the USB STDIO globally. Enabling is handled in 'debug_support' in the code.
@@ -112,6 +116,7 @@ add_subdirectory(hwrt)
 add_subdirectory(lib)
 add_subdirectory(picohlp)
 add_subdirectory(rotary_encoder)
+add_subdirectory(shell)
 #
 # External libraries
 #add_subdirectory(lib)

@@ -1,7 +1,7 @@
 /**
  * @brief Methods that are implemented for either I2C or SPI.
  *
- * Copyright 2023 AESilky
+ * Copyright 2023-25 AESilky
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */

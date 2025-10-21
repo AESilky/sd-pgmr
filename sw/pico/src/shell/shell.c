@@ -1,0 +1,432 @@
+/**
+ * User Interface - On the terminal.
+ *
+ * Copyright 2023-25 AESilky
+ * SPDX-License-Identifier: MIT License
+ *
+*/
+#include "shell.h"
+
+#include "board.h"
+#include "cmd.h"
+#include "cmt/cmt.h"
+#include "term.h"
+#include "util.h"
+
+#include "hardware/rtc.h"
+#include "pico/printf.h"
+
+#include <ctype.h>
+#include <string.h>
+
+static bool _initialized;
+
+static term_color_t _color_term_text_current_bg;
+static term_color_t _color_term_text_current_fg;
+
+static shell_control_char_handler _control_char_handler[32]; // Room for a handler for each control character
+
+static char _getline_buf[shell_GETLINE_MAX_LEN_];
+static int16_t _getline_index;
+
+static bool _wraptext_on;
+static int _wraptext_column;
+static char _wraptext_line[2 * shell_COLUMNS];
+
+static uint16_t _scroll_end_line;
+static uint16_t _station_list_separator_line;
+
+static shell_input_available_handler _input_available_handler;
+static shell_getline_callback_fn _getline_callback; // Function pointer to be called when an input line is ready
+
+/**
+ * @brief Message handler for `MSG_INPUT_CHAR_READY`
+ * @ingroup ui
+ *
+ * @param msg Nothing important in the message.
+ */
+void _shell_handle_input_char_ready(cmt_msg_t* msg) {
+    if (NULL != _input_available_handler) {
+        _input_available_handler();
+    }
+}
+
+/**
+ * @brief A `term_notify_on_input_fn` handler for input ready.
+ * @ingroup ui
+ */
+void _input_ready_hook(void) {
+    // Since this is called by an interrupt handler,
+    // post a UI message so that the input is handled
+    // by the UI message loop.
+    cmt_msg_t msg;
+    cmt_msg_init(&msg, MSG_INPUT_CHAR_READY);
+    postAPPMsg(&msg);
+    // The hook is cleared on notify, so hook ourself back in.
+    term_register_notify_on_input(_input_ready_hook);
+}
+
+static void _draw_station_list_box(uint16_t lines) {
+    uint16_t nsls = shell_STATION_LIST_LAST_LINE - (lines);
+    // Save current cursor and set color
+    term_cursor_save();
+    term_set_origin_mode(TERM_OM_UPPER_LEFT);
+    term_color_fg(shell_STATION_LIST_BOX_COLOR_FG);
+    term_color_bg(shell_STATION_LIST_COLOR_BG);
+    if (nsls > _station_list_separator_line && _station_list_separator_line > 0) {
+        // Need to erase lines from old box
+        term_cursor_moveto(_station_list_separator_line, 1);
+        for (int i = 0; i <= (shell_STATION_LIST_LAST_LINE - _station_list_separator_line); i++) {
+            term_erase_line();
+            term_cursor_down_1();
+        }
+    }
+    // Move to begining of separator line and set
+    term_cursor_moveto(nsls, 1);
+    // Draw the top
+    term_charset(VT_100_LINEDRAW);
+    for (int i = 0; i < shell_COLUMNS; i++) {
+        if (i == (shell_COLUMNS / shell_STATIONS_PER_LINE) || i == ((((shell_COLUMNS / shell_STATIONS_PER_LINE) * 2) + 1))) {
+            putchar(VT_LD_TCT);
+        }
+        else {
+            putchar(VT_LD_HOR);
+        }
+    }
+    // Draw the bars
+    for (int i = nsls + 1; i <= nsls + lines; i++) {
+        term_cursor_moveto(i, ((shell_COLUMNS / shell_STATIONS_PER_LINE) + 1));
+        putchar(VT_LD_VER);
+        term_cursor_right(shell_COLUMNS / shell_STATIONS_PER_LINE);
+        putchar(VT_LD_VER);
+    }
+    term_charset(VT_ASCII);
+    // If the start line is different, change the scroll area
+    bool scroll_area_smaller = (nsls < _station_list_separator_line);
+    if (nsls != _station_list_separator_line) {
+        _station_list_separator_line = nsls;
+        _scroll_end_line = _station_list_separator_line - 1;
+        term_set_margin_top_bottom(shell_SCROLL_START_LINE, _scroll_end_line);
+        if (scroll_area_smaller) {
+            // Restore the previous cursor and if the line is beyond the scroll area, adjust it.
+            term_set_origin_mode(TERM_OM_IN_MARGINS);
+            term_cursor_restore();
+            scr_position_t pos = term_get_cursor_position();
+            if (pos.line > _scroll_end_line) {
+                term_cursor_moveto(_scroll_end_line, pos.column);
+            }
+            return;
+        }
+    }
+    // Put screen back
+    term_set_origin_mode(TERM_OM_IN_MARGINS);
+    term_cursor_restore();
+}
+
+static void _header_fill_fixed() {
+    term_cursor_save();
+    term_set_origin_mode(TERM_OM_UPPER_LEFT);
+    term_color_fg(shell_HEADER_COLOR_FG);
+    term_color_bg(shell_HEADER_COLOR_BG);
+    term_cursor_moveto(shell_HEADER_INFO_LINE, 1);
+    term_erase_line();
+    term_color_default();
+    term_set_origin_mode(TERM_OM_IN_MARGINS);
+    term_cursor_restore();
+}
+
+static void _status_fill_fixed() {
+    term_cursor_save();
+    term_color_fg(shell_STATUS_COLOR_FG);
+    term_color_bg(shell_STATUS_COLOR_BG);
+    term_set_origin_mode(TERM_OM_UPPER_LEFT);
+    term_cursor_moveto(shell_STATUS_LINE, 1);
+    term_erase_line();
+    printf("%s", shell_NAME_VERSION);
+    term_cursor_moveto(shell_STATUS_LINE, shell_STATUS_LOGO_COL);
+    printf("%s", AES_LOGO);
+    term_set_origin_mode(TERM_OM_IN_MARGINS);
+    term_cursor_restore();
+}
+
+static void _shell_getline_continue() {
+    int ci;
+    shell_getline_callback_fn fn = _getline_callback;
+
+    // Process characters that are available.
+    while ((ci = term_getc()) >= 0) {
+        char c = (char)ci;
+        if ('\n' == c || '\r' == c) {
+            // EOL - Terminate the input line and give to callback.
+            _getline_buf[_getline_index] = '\0';
+            _getline_index = 0;
+            _getline_callback = NULL;
+            shell_register_input_available_handler(NULL);
+            fn(_getline_buf);
+            return;
+        }
+        if (BS == c || DEL == c) {
+            // Backspace/Delete - move back if we aren't at the BOL
+            if (_getline_index > 0) {
+                _getline_index--;
+                term_cursor_left_1();
+                term_erase_char(1);
+            }
+            _getline_buf[_getline_index] = '\0';
+        }
+        else if (ESC == c) {
+            // Escape - erase the line
+            while (_getline_index > 0) {
+                _getline_buf[_getline_index] = '\0';
+                term_cursor_left_1();
+                term_erase_char(1);
+                _getline_index--;
+            }
+            _getline_index = 0;
+            _getline_buf[_getline_index] = '\0';
+            // If there is a handler registered for ESC let it handle it too
+            shell_handle_control_character(c);
+        }
+        else if (c >= ' ' && c < DEL) {
+            if (_getline_index < (shell_GETLINE_MAX_LEN_ - 1)) {
+                _getline_buf[_getline_index++] = c;
+                putchar(c);
+            }
+            else {
+                // Alert them that they are at the end
+                putchar(BEL);
+            }
+        }
+        else {
+            // See if there is a handler registered for this, else BEEP
+            if (!shell_handle_control_character(c)) {
+                // Control or 8-bit character we don't deal with
+                putchar(BEL);
+            }
+        }
+        // `while` will see if there are more chars available
+    }
+    // No more input chars are available, but we haven't gotten EOL yet,
+    // hook for more to wake back up...
+    term_register_notify_on_input(_input_ready_hook);
+}
+
+static void _term_init() {
+    _wraptext_on = false;
+    memset(_wraptext_line, 0, sizeof(_wraptext_line));
+    _wraptext_column = 0;
+    _input_available_handler = NULL;
+    memset(_control_char_handler, 0, sizeof(_control_char_handler));
+    term_reset();
+    term_color_default();
+    term_set_type(VT_510_TYPE_SPEC, VT_510_ID_SPEC);
+    term_set_title(shell_NAME_VERSION);
+    term_set_size(shell_LINES, shell_COLUMNS);
+    term_clear();
+    _draw_station_list_box(0);
+    term_cursor_on(false);
+    term_cursor_moveto(1,1);
+    shell_use_output_color();
+}
+
+void shell_build(void) {
+    _term_init();
+    _header_fill_fixed();
+    _status_fill_fixed();
+    shell_update_status();
+}
+
+term_color_pair_t shell_color_get() {
+    term_color_pair_t tc = { _color_term_text_current_fg, _color_term_text_current_bg };
+    return (tc);
+}
+
+void shell_color_refresh() {
+    term_color_bg(_color_term_text_current_bg);
+    term_color_fg(_color_term_text_current_fg);
+}
+
+void shell_color_set(term_color_t fg, term_color_t bg) {
+    _color_term_text_current_bg = bg;
+    _color_term_text_current_fg = fg;
+    term_color_bg(bg);
+    term_color_fg(fg);
+}
+
+static shell_control_char_handler shell_get_control_char_handler(char c) {
+    if (iscntrl(c)) {
+        return _control_char_handler[(int)c];
+    }
+    return (NULL);
+}
+
+void shell_getline(shell_getline_callback_fn getline_cb) {
+    _getline_callback = getline_cb;
+    shell_register_input_available_handler(_shell_getline_continue);
+    // Use the 'continue' function to process
+    _shell_getline_continue();
+}
+
+void shell_getline_cancel(shell_input_available_handler input_handler) {
+    _getline_callback = NULL;
+    shell_register_input_available_handler(input_handler);
+    _getline_index = 0;
+    _getline_buf[_getline_index] = '\0';
+}
+
+bool shell_handle_control_character(char c) {
+    if (iscntrl(c)) {
+        shell_control_char_handler handler_fn = _control_char_handler[(int)c];
+        if (handler_fn) {
+            handler_fn(c);
+            return (true);
+        }
+    }
+    return (false);
+}
+
+static void _printc_for_printf_term(char c, void* arg) {
+    putchar(c);
+}
+
+int shell_printf(const char* format, ...) {
+    int pl = 0;
+    // if (_wraptext_on) {
+    //     putchar('\n');
+    //     pl = 1;
+    // }
+    va_list xArgs;
+    va_start(xArgs, format);
+    pl += vfctprintf(_printc_for_printf_term, NULL, format, xArgs);
+    va_end(xArgs);
+
+    return (pl);
+}
+
+static void _putchar_for_app(char c) {
+    if ('\n' == c) {
+        putchar(c);
+        _wraptext_column = 0;
+        return;
+    }
+    if (_wraptext_column == shell_COLUMNS) {
+        // Printing this will cause a wrap.
+        if (' ' == c) {
+            // It's a space. Just print a newline instead.
+            putchar('\n');
+            _wraptext_column = 0;
+            return;
+        }
+        else {
+            // See if we can move back to a space
+            int i = 0;
+            for (; i < _wraptext_column; i++) {
+                if (' ' == _wraptext_line[_wraptext_column - i]) {
+                    break;
+                }
+            }
+            if (i < _wraptext_column) {
+                // Yes there was a space in the line. Backup, print a '\n', then reprint to the end of line.
+                term_cursor_left(i-1);
+                term_erase_eol();
+                putchar('\n');
+                int nc = 0;
+                for (int j = ((_wraptext_column - i) + 1); j < _wraptext_column; j++) {
+                    putchar(_wraptext_line[j]);
+                    nc++;
+                }
+                _wraptext_column = nc;
+            }
+            else {
+                // No spaces in the current line. Just print a '\n' (breaking the word).
+                putchar('\n');
+                _wraptext_column = 0;
+            }
+        }
+    }
+    _wraptext_line[_wraptext_column] = c;
+    putchar(c);
+    _wraptext_column++;
+    if ('=' == c) {
+        putchar('\n');
+        _wraptext_column = 0;
+    }
+}
+
+void shell_put_apptext(char* str) {
+    // If the Command Shell is active, don't display output.
+    if (CMD_SNOOZING == cmd_get_state()) {
+        if (!_wraptext_on) {
+            _putchar_for_app('\n');
+            _wraptext_on = true;
+        }
+        char c;
+        while ('\0' != (c = *str++)) {
+            _putchar_for_app(c);
+        }
+    }
+}
+
+void shell_puts(char* str) {
+    if (_wraptext_on) {
+        putchar('\n');
+        _wraptext_on = false;
+    }
+    printf("%s", str);
+}
+
+void shell_register_control_char_handler(char c, shell_control_char_handler handler_fn) {
+    if (iscntrl(c)) {
+        _control_char_handler[(int)c] = handler_fn;
+    }
+}
+
+void shell_register_input_available_handler(shell_input_available_handler handler_fn) {
+    _input_available_handler = handler_fn;
+}
+
+uint16_t shell_scroll_end_line_get() {
+    return _scroll_end_line;
+}
+
+void shell_update_status() {
+    // Put the current time in the center
+    char buf[10];
+    datetime_t now;
+
+    rtc_get_datetime(&now);
+    strdatetime(buf, 9, &now, SDTC_TIME_2CHAR_HOUR | SDTC_TIME_AMPM);
+    term_color_pair_t tc = shell_color_get();
+    term_cursor_save();
+    term_color_fg(shell_STATUS_COLOR_FG);
+    term_color_bg(shell_STATUS_COLOR_BG);
+    term_set_origin_mode(TERM_OM_UPPER_LEFT);
+    term_cursor_moveto(shell_STATUS_LINE, shell_STATUS_TIME_COL);
+    printf("%s", buf);
+    term_set_origin_mode(TERM_OM_IN_MARGINS);
+    term_cursor_restore();
+    shell_color_set(tc.fg, tc.bg);
+}
+
+void shell_use_output_color() {
+    shell_color_set(shell_CODE_COLOR_FG, shell_CODE_COLOR_BG);
+}
+
+void shell_use_cmd_color() {
+    shell_color_set(shell_CMD_COLOR_FG, shell_CMD_COLOR_BG);
+}
+
+
+
+void shell_module_init() {
+    if (_initialized) {
+        board_panic("!!! shell_module_init already called. !!!");
+    }
+    _initialized = true;
+    
+    cmd_module_init();
+    term_module_init();
+    //
+    // Register our message handler
+    cmt_msg_hdlr_add(MSG_INPUT_CHAR_READY, _shell_handle_input_char_ready);
+}

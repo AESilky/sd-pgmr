@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 AESilky
+ * Copyright 2023-25 AESilky
  * Portions copyright (c) 2021 Raspberry Pi (Trading) Ltd.
  *
  *
@@ -11,7 +11,9 @@
 
 #include "hardware/spi.h"
 
-/** @brief Board Operation Token, needed to perform Disp C/D select */
+#define DISP_CMD_ENABLE  0  // Low signal is CMD
+#define DISP_DATA_ENABLE 1  // High signal is DATA
+
 static boptkn_t boptkn;
 
 /**
@@ -33,30 +35,20 @@ static void _cs(bool sel) {
  */
 static void _command_mode(bool cmd) {
     if (cmd) {
-        // Assert the Display-Control signal
-        board_op(boptkn, BDO_DISPLAY_CTRL);
+        gpio_put(SPI_DISPLAY_CTRL, DISP_CMD_ENABLE);
     }
     else {
-        // Assure that the Display-Control signal is not asserted
-        board_op(boptkn, BDO_NONE);
-    }
+        gpio_put(SPI_DISPLAY_CTRL, DISP_DATA_ENABLE);
+   }
 }
 
 bool disp_cmd_op_start() {
-    boptkn = board_op_start();
-    if (boptkn == NULL) {
-        return false;
-    }
     _command_mode(true);
     _cs(true);
     return true;
 }
 
 bool disp_data_op_start() {
-    boptkn = board_op_start();
-    if (boptkn == NULL) {
-        return false;
-    }
     _command_mode(false);
     _cs(true);
     return true;
@@ -65,7 +57,6 @@ bool disp_data_op_start() {
 void disp_op_end() {
     _command_mode(false);
     _cs(false);
-    board_op_end(boptkn);
 }
 
 void disp_reset() {

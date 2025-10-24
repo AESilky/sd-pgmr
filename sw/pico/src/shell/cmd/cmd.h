@@ -18,6 +18,7 @@ extern "C" {
 
 #define CMD_WAKEUP_CHAR ':'
 #define CMD_REINIT_TERM_CHAR '\022' // ^R
+#define CMD_RECALL_LAST_CHAR '\013' // ^K
 
 #define CMD_PROMPT ':'
 
@@ -30,10 +31,12 @@ typedef enum _CMD_STATES_ {
 
 
 /**
- * @brief Enter the idle state (if not already in it).
+ * @brief Activate/deactivate the command processor.
  * @ingroup ui
+ *
+ * @param activate True to activate the command processor
  */
-extern void cmd_enter_idle_state();
+extern void cmd_activate(bool activate);
 
 /**
  * @brief Get a value from a char string testing for a minimum and maximum value.

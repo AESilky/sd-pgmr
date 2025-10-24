@@ -17,7 +17,7 @@
 
 #include <stdbool.h>
 
-static int _debug_cmd_debug(int argc, char** argv, const char* unparsed) {
+static int _exec(int argc, char** argv, const char* unparsed) {
     if (argc > 2) {
         // We only take a single argument.
         cmd_help_display(&cmds_debug_entry, HELP_DISP_USAGE);
@@ -35,7 +35,7 @@ static int _debug_cmd_debug(int argc, char** argv, const char* unparsed) {
 
 
 const cmd_handler_entry_t cmds_debug_entry = {
-    _debug_cmd_debug,
+    _exec,
     2,
     ".debug",
     "[ON|OFF]",

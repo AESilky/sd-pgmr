@@ -145,8 +145,9 @@ inline void term_charset(vt_charset_t cs) {
     printf("%s%c", SCS, (char)cs);
 }
 
-inline void term_clear() {
-    printf("%s2J", CSI); // Some guides indicate 'ESC c', but that is 'Reset' not just 'Clear'
+inline void term_clear(bool home) {
+    char* cs = (home ? "\e[H\e[2J" : "\e[2J");
+    printf(cs); // Some guides indicate 'ESC c', but that is 'Reset' not just 'Clear'
 }
 
 inline void term_color_default() {
@@ -171,6 +172,10 @@ inline void term_cursor_down(uint16_t n) {
 
 inline void term_cursor_down_1(void) {
     printf("%s", NEL);
+}
+
+inline void term_cursor_home(void) {
+    printf("%sH", CSI);
 }
 
 inline void term_cursor_left(uint16_t n) {
@@ -297,8 +302,7 @@ void term_module_init() {
     info_printf("Term - Name: %s\n", (_term_name));
     // Set the terminal type to one we want
     term_set_type(VT_510_TYPE_SPEC, VT_510_ID_SPEC);
-    term_set_size(25, 80);
-    //term_clear();
+    term_set_size(48, 132);
     term_color_default();
     term_cursor_on(true);
 }
@@ -402,7 +406,7 @@ void term_set_size(uint16_t lines, uint16_t columns) {
     sleep_ms(15);
     // printf("%s%hdt", CSI, lines); // Lines: Page size
     // sleep_ms(20);
-    term_clear();
+    term_clear(true);
 }
 
 inline void term_set_title(const char* title) {

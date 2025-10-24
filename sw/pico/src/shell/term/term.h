@@ -177,8 +177,9 @@ extern void term_charset(vt_charset_t cs);
  * @brief Clear the full screen
  * @ingroup term
  *
+ * @param home True to home the cursor. False, leave cursor at current position
  */
-extern void term_clear(void);
+extern void term_clear(bool home);
 
 /**
  * @brief Set the text character forground color using a color value.
@@ -223,6 +224,12 @@ extern void term_cursor_down(uint16_t n);
  *
  */
 extern void term_cursor_down_1(void);
+
+/**
+ * @brief Move the cursor to row 1, column 1.
+ * @ingroup term
+ */
+extern void term_cursor_home(void);
 
 /**
  * @brief Move the cursor left `n` columns.

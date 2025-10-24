@@ -3,6 +3,7 @@ add_library(cmds INTERFACE)
 
 target_sources(cmds INTERFACE
     debug.c
+    devrdwr.c
 )
 
 target_include_directories(cmds INTERFACE

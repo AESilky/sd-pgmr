@@ -12,6 +12,7 @@
 #include "cmt/cmt.h"
 
 #include "shell/cmds/debug.h"
+#include "shell/cmds/devrdwr.h"
 #include "shell/term/term.h"
 #include "shell/shell.h"
 
@@ -22,16 +23,27 @@
 
 #define CMD_LINE_MAX_ARGS 64
 
+// Buffer to save the last input line into for recall
+static char _cmdline_last[shell_GETLINE_MAX_LEN_];
 // Buffer to copy the input line into to be parsed.
 static char _cmdline_parsed[shell_GETLINE_MAX_LEN_];
 
 // Command processor declarations
+static int _cmd_cls(int argc, char** argv, const char* unparsed);
 static int _cmd_help(int argc, char** argv, const char* unparsed);
 static int _cmd_keys(int argc, char** argv, const char* unparsed);
 static int _cmd_proc_status(int argc, char** argv, const char* unparsed);
 static void _process_line(char* line);
 
 // Command processors framework
+static const cmd_handler_entry_t _cmd_cls_entry = {
+    // Clear Screen
+    _cmd_cls,
+    3,
+    "cls",
+    NULL,
+    "Clear the terminal screen.\n",
+};
 static const cmd_handler_entry_t _cmd_help_entry = {
     _cmd_help,
     1,
@@ -58,10 +70,18 @@ static const cmd_handler_entry_t _cmd_proc_status_entry = {
  * @brief List of Command Handlers
  */
 static const cmd_handler_entry_t* _command_entries[] = {
-    &cmds_debug_entry,              // .debug - 'DOT' commands come first
-    &_cmd_proc_status_entry,        // .ps
-    &_cmd_help_entry,
-    &_cmd_keys_entry,
+    & cmds_debug_entry,             // .debug - 'DOT' commands come first
+    & _cmd_proc_status_entry,       // .ps
+    & cmds_devaddr_entry,           // Device Address
+    & cmds_devaddr_n_entry,         // Device Address next
+    & _cmd_cls_entry,               // Clear Screen
+    & cmds_devpwr_entry,            // Device Power
+    & cmds_devrd_entry,             // Device Read
+    & cmds_devrd_n_entry,           // Device Read next
+    & cmds_devwr_entry,             // Device Write
+    & cmds_devwr_n_entry,           // Device Write next
+    & _cmd_help_entry,
+    & _cmd_keys_entry,
     ((cmd_handler_entry_t*)0),      // Last entry must be a NULL
 };
 
@@ -69,6 +89,8 @@ static const cmd_handler_entry_t* _command_entries[] = {
 // Internal (non-command) declarations
 
 static void _hook_keypress();
+static void _wakeup();
+
 
 // Class data
 
@@ -78,6 +100,16 @@ static cmd_state_t _cmd_state = CMD_SNOOZING;
 
 
 // Command built-in functions (others are in the 'cmds' directory)
+
+static int _cmd_cls(int argc, char** argv, const char* unparsed) {
+    if (argc > 1) {
+        cmd_help_display(&_cmd_cls_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    term_clear(true);
+
+    return (0);
+}
 
 static int _cmd_help(int argc, char** argv, const char* unparsed) {
     const cmd_handler_entry_t** cmds;
@@ -135,10 +167,11 @@ static int _cmd_keys(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&_cmd_keys_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    shell_printf("':' : While busy, enters command mode for one command.\n");
-    shell_printf("^H  : Backspace (same as Backspace key on most terminals).\n");
-    shell_printf("^R  : Refresh the terminal screen.\n");
-    shell_printf("ESC : Clear the input line.\n");
+    shell_puts("':'            : While busy, enters command mode for one command.\n");
+    shell_puts("^H             : Backspace (same as Backspace key on most terminals).\n");
+    shell_puts("^K or Up-Arrow : Recall last command.\n");
+    shell_puts("^R             : Refresh the terminal screen.\n");
+    shell_puts("^X             : Clear the input line.\n");
 
     return (0);
 }
@@ -190,17 +223,20 @@ static void _cmd_attn_handler(cmt_msg_t* msg) {
     if (CMD_SNOOZING == _cmd_state) {
         // See if the char is 'wakeup'
         if (CMD_WAKEUP_CHAR == c) {
-            // Wakeup received, change state to building line.
-            _cmd_state = CMD_COLLECTING_LINE;
-            term_cursor_moveto(shell_scroll_end_line_get(), 1);
-            shell_use_cmd_color();
-            putchar('\n');
-            putchar(CMD_PROMPT);
-            term_cursor_on(true);
-            // Get a command from the user...
-            shell_getline(_process_line);
+            _wakeup();
         }
     }
+}
+
+void _handle_cc_recall_last(char c) {
+    // ^K can be typed to put the last command entered on the current input line.
+    shell_getline_append(_cmdline_last);
+}
+
+bool _handle_es_recall_last(sescseq_t escseq, const char* escstr) {
+    // Up-Arrow (ESC[A) can be typed to put the last command entered on the current input line.
+    shell_getline_append(_cmdline_last);
+    return (true);
 }
 
 /**
@@ -208,7 +244,7 @@ static void _cmd_attn_handler(cmt_msg_t* msg) {
  *
  * @param c Should be ^R
  */
-void _handle_reinit_terminal_char(char c) {
+void _handle_cc_reinit_terminal(char c) {
     // ^R can be typed if the terminal gets messed up or is connected after system has started.
     // This re-initializes the terminal.
     cmt_msg_t msg;
@@ -259,6 +295,7 @@ static void _process_line(char* line) {
 
     // Copy the line into a buffer for parsing
     strcpy(_cmdline_parsed, line);
+    strcpy(_cmdline_last, line);
 
     int argc = parse_line(_cmdline_parsed, argv, CMD_LINE_MAX_ARGS);
     char* user_cmd = argv[0];
@@ -285,7 +322,6 @@ static void _process_line(char* line) {
             shell_printf("Command not found: '%s'. Try 'help'.\n", user_cmd);
         }
     }
-
     // If we aren't currently busy, get another line from the user.
     if (!false) {
         // Get a command from the user...
@@ -294,25 +330,43 @@ static void _process_line(char* line) {
         shell_getline(_process_line);
     }
     else {
-        cmd_enter_idle_state();
+        cmd_activate(true);
     }
+}
+
+static void _wakeup() {
+    // Wakeup the command processor. Change state to building line.
+    _cmd_state = CMD_COLLECTING_LINE;
+    //term_cursor_moveto(shell_scroll_end_line_get(), 1);
+    shell_use_cmd_color();
+    putchar('\n');
+    putchar(CMD_PROMPT);
+    term_cursor_on(true);
+    // Get a command from the user...
+    shell_getline(_process_line);
 }
 
 
 // Public functions
 
 /**
- * This is typically called by the UI when the system connects to a wire.
+ * This is typically called by the application when wants the user to have the
+ * command processor (true) or when it needs to collect and process input (false).
  */
-extern void cmd_enter_idle_state() {
-    if (CMD_SNOOZING != _cmd_state) {
-        // Cancel any inprocess 'getline'
-        shell_getline_cancel(_notified_of_keypress);
-        // Put the terminal back to 'code' state
-        term_cursor_on(false);
-        shell_use_output_color();
-        // go back to Snoozing
-        _cmd_state = CMD_SNOOZING;
+extern void cmd_activate(bool activate) {
+    if (activate) {
+        _wakeup();
+    }
+    else {
+        if (CMD_SNOOZING != _cmd_state) {
+            // Cancel any inprocess 'getline'
+            shell_getline_cancel(_notified_of_keypress);
+            // Put the terminal back to 'code' state
+            term_cursor_on(false);
+            shell_use_output_color();
+            // go back to Snoozing
+            _cmd_state = CMD_SNOOZING;
+        }
     }
 }
 
@@ -367,10 +421,13 @@ void cmd_help_display(const cmd_handler_entry_t* cmd, const cmd_help_display_for
     term_color_bg(tc.bg);
 }
 
+
 void cmd_module_init() {
     _cmd_state = CMD_SNOOZING;
     // Register the control character handlers.
-    shell_register_control_char_handler(CMD_REINIT_TERM_CHAR, _handle_reinit_terminal_char);
+    shell_register_control_char_handler(CMD_REINIT_TERM_CHAR, _handle_cc_reinit_terminal);
+    shell_register_control_char_handler(CMD_RECALL_LAST_CHAR, _handle_cc_recall_last);
+    shell_register_esc_seq_handler(SES_KEY_ARROW_UP, _handle_es_recall_last);
     //
     // Register our message handler
     cmt_msg_hdlr_add(MSG_CMD_KEY_PRESSED, _cmd_attn_handler);

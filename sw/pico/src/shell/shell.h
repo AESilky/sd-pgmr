@@ -16,10 +16,11 @@ extern "C" {
 
 #define shell_NAME_VERSION "AES v0.1"
 
+
 // NOTE: Terminal line and column numbers are 1-based.
 
-#define shell_COLUMNS 80 // VT/ANSI indicate valid values are 80|132, emulators take others
-#define shell_LINES 36 // VT/ANSI indicate: 24, 25, 36, 42, 48, 52, and 72 are valid
+#define shell_COLUMNS 132 // VT/ANSI indicate valid values are 80|132, emulators take others
+#define shell_LINES 48 // VT/ANSI indicate: 24, 25, 36, 42, 48, 52, and 72 are valid
 
 // Code display color
 #define shell_CODE_COLOR_FG TERM_CHR_COLOR_GREEN
@@ -83,6 +84,29 @@ typedef struct _TERM_COLOR_PAIR_ {
 typedef void (*shell_control_char_handler)(char c);
 
 /**
+ * @brief ENUM of the supported ESC sequences.
+ */
+typedef enum SHELL_ESC_SEQUENCE_ {
+    SES_KEY_ARROW_UP = 0,
+} sescseq_t;
+#define _SEH_NUM (SES_KEY_ARROW_UP + 1)
+
+/**
+ * @brief Function prototype for handlers to register for escape sequences.
+ * @ingroup ui
+ *
+ * A function can be registered to handle a given ESC sequence. The shell decodes them
+ * and then hands them off to the handler.
+ *
+ * The handler returns true if it was able to handle the sequence.
+ *
+ * @param seq The sescseq_t sequence that was received.
+ * @param chars The string of characters received for the sequence.
+ * @return True if the sequence was processed. False otherwise.
+ */
+typedef bool (*shell_escape_seq_handler)(sescseq_t seq, const char* chars);
+
+/**
  * @brief Callback function that gets the line once it has been received/assembled.
  * @ingroup ui
  *
@@ -140,15 +164,6 @@ extern void shell_color_refresh();
 extern void shell_color_set(term_color_t fg, term_color_t bg);
 
 /**
- * @brief Get the control character handler for the given control character.
- * @ingroup ui
- *
- * @param c Character to get the handler for. Non control characters will return NULL.
- * @return shell_control_char_handler The handler for the character or NULL.
- */
-static shell_control_char_handler shell_get_control_char_handler(char c);
-
-/**
  * @brief Get a line of user input. Returns immediately. Calls back when line is ready.
  * @ingroup ui
  * @see term_getline_callback_fn for details on use.
@@ -156,6 +171,14 @@ static shell_control_char_handler shell_get_control_char_handler(char c);
  * @param getline_cb The callback function to call when a line is ready.
  */
 extern void shell_getline(shell_getline_callback_fn getline_cb);
+
+/**
+ * @brief Append a string to the current getline collected text.
+ * @ingroup ui
+ *
+ * @param appndstr String to append.
+ */
+extern void shell_getline_append(const char* appndstr);
 
 /**
  * @brief Cancel a `shell_getline` that is inprogress.
@@ -194,7 +217,15 @@ int shell_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2))
 extern void shell_put_apptext(char* str);
 
 /**
- * @brief Print a string in the scrolling (code) area of the screen.
+ * @brief Print a character to the scrolling (app) area of the screen.
+ * @ingroup ui
+ *
+ * @param c The character to print
+ */
+extern void shell_putc(uint8_t c);
+
+/**
+ * @brief Print a string in the scrolling (app) area of the screen.
  * @ingroup ui
  *
  * If code is displaying, this will print a newline and then the string.
@@ -213,6 +244,17 @@ extern void shell_puts(char* str);
  * @param handler_fn The handler.
  */
 extern void shell_register_control_char_handler(char c, shell_control_char_handler handler_fn);
+
+/**
+ * @brief Register an ESC Sequence handler.
+ * @ingroup ui
+ *
+ * @see `shell_escape_seq_handler` for a description of when this is used.
+ *
+ * @param escseq The ESC Sequence to register the handler for.
+ * @param handler_fn The handler.
+ */
+void shell_register_esc_seq_handler(sescseq_t escseq, shell_escape_seq_handler handler_fn);
 
 /**
  * @brief Register a function to handle terminal input available.

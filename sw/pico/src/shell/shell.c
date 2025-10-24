@@ -19,6 +19,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#define ESC_NOT_IN_PROGRESS (-1)
+
 static bool _initialized;
 
 static term_color_t _color_term_text_current_bg;
@@ -26,18 +28,26 @@ static term_color_t _color_term_text_current_fg;
 
 static shell_control_char_handler _control_char_handler[32]; // Room for a handler for each control character
 
+static shell_escape_seq_handler _escseq_handler[_SEH_NUM]; // Room for the ESC Sequences that we support
+
 static char _getline_buf[shell_GETLINE_MAX_LEN_];
 static int16_t _getline_index;
+
+static int _esc_collecting; // If -1, not collecting. Else, index to store the next received character until done.
+static char _esc_collected[8]; // Room to collect characters for an escape sequence.
 
 static bool _wraptext_on;
 static int _wraptext_column;
 static char _wraptext_line[2 * shell_COLUMNS];
 
 static uint16_t _scroll_end_line;
-static uint16_t _station_list_separator_line;
 
 static shell_input_available_handler _input_available_handler;
 static shell_getline_callback_fn _getline_callback; // Function pointer to be called when an input line is ready
+
+
+static bool _process_char(char c, bool process_ctrl);
+
 
 /**
  * @brief Message handler for `MSG_INPUT_CHAR_READY`
@@ -67,60 +77,91 @@ void _input_ready_hook(void) {
 }
 
 static void _draw_station_list_box(uint16_t lines) {
-    uint16_t nsls = shell_STATION_LIST_LAST_LINE - (lines);
-    // Save current cursor and set color
-    term_cursor_save();
-    term_set_origin_mode(TERM_OM_UPPER_LEFT);
-    term_color_fg(shell_STATION_LIST_BOX_COLOR_FG);
-    term_color_bg(shell_STATION_LIST_COLOR_BG);
-    if (nsls > _station_list_separator_line && _station_list_separator_line > 0) {
-        // Need to erase lines from old box
-        term_cursor_moveto(_station_list_separator_line, 1);
-        for (int i = 0; i <= (shell_STATION_LIST_LAST_LINE - _station_list_separator_line); i++) {
-            term_erase_line();
-            term_cursor_down_1();
-        }
+    // uint16_t nsls = shell_STATION_LIST_LAST_LINE - (lines);
+    // // Save current cursor and set color
+    // term_cursor_save();
+    // term_set_origin_mode(TERM_OM_UPPER_LEFT);
+    // term_color_fg(shell_STATION_LIST_BOX_COLOR_FG);
+    // term_color_bg(shell_STATION_LIST_COLOR_BG);
+    // if (nsls > _station_list_separator_line && _station_list_separator_line > 0) {
+    //     // Need to erase lines from old box
+    //     term_cursor_moveto(_station_list_separator_line, 1);
+    //     for (int i = 0; i <= (shell_STATION_LIST_LAST_LINE - _station_list_separator_line); i++) {
+    //         term_erase_line();
+    //         term_cursor_down_1();
+    //     }
+    // }
+    // // Move to begining of separator line and set
+    // term_cursor_moveto(nsls, 1);
+    // // Draw the top
+    // term_charset(VT_100_LINEDRAW);
+    // for (int i = 0; i < shell_COLUMNS; i++) {
+    //     if (i == (shell_COLUMNS / shell_STATIONS_PER_LINE) || i == ((((shell_COLUMNS / shell_STATIONS_PER_LINE) * 2) + 1))) {
+    //         putchar(VT_LD_TCT);
+    //     }
+    //     else {
+    //         putchar(VT_LD_HOR);
+    //     }
+    // }
+    // // Draw the bars
+    // for (int i = nsls + 1; i <= nsls + lines; i++) {
+    //     term_cursor_moveto(i, ((shell_COLUMNS / shell_STATIONS_PER_LINE) + 1));
+    //     putchar(VT_LD_VER);
+    //     term_cursor_right(shell_COLUMNS / shell_STATIONS_PER_LINE);
+    //     putchar(VT_LD_VER);
+    // }
+    // term_charset(VT_ASCII);
+    // // If the start line is different, change the scroll area
+    // bool scroll_area_smaller = (nsls < _station_list_separator_line);
+    // if (nsls != _station_list_separator_line) {
+    //     _station_list_separator_line = nsls;
+    //     _scroll_end_line = _station_list_separator_line - 1;
+    //     term_set_margin_top_bottom(shell_SCROLL_START_LINE, _scroll_end_line);
+    //     if (scroll_area_smaller) {
+    //         // Restore the previous cursor and if the line is beyond the scroll area, adjust it.
+    //         term_set_origin_mode(TERM_OM_IN_MARGINS);
+    //         term_cursor_restore();
+    //         scr_position_t pos = term_get_cursor_position();
+    //         if (pos.line > _scroll_end_line) {
+    //             term_cursor_moveto(_scroll_end_line, pos.column);
+    //         }
+    //         return;
+    //     }
+    // }
+    // // Put screen back
+    // term_set_origin_mode(TERM_OM_IN_MARGINS);
+    // term_cursor_restore();
+}
+
+static shell_control_char_handler _get_control_char_handler(char c) {
+    if (iscntrl(c)) {
+        return _control_char_handler[(int)c];
     }
-    // Move to begining of separator line and set
-    term_cursor_moveto(nsls, 1);
-    // Draw the top
-    term_charset(VT_100_LINEDRAW);
-    for (int i = 0; i < shell_COLUMNS; i++) {
-        if (i == (shell_COLUMNS / shell_STATIONS_PER_LINE) || i == ((((shell_COLUMNS / shell_STATIONS_PER_LINE) * 2) + 1))) {
-            putchar(VT_LD_TCT);
-        }
-        else {
-            putchar(VT_LD_HOR);
-        }
-    }
-    // Draw the bars
-    for (int i = nsls + 1; i <= nsls + lines; i++) {
-        term_cursor_moveto(i, ((shell_COLUMNS / shell_STATIONS_PER_LINE) + 1));
-        putchar(VT_LD_VER);
-        term_cursor_right(shell_COLUMNS / shell_STATIONS_PER_LINE);
-        putchar(VT_LD_VER);
-    }
-    term_charset(VT_ASCII);
-    // If the start line is different, change the scroll area
-    bool scroll_area_smaller = (nsls < _station_list_separator_line);
-    if (nsls != _station_list_separator_line) {
-        _station_list_separator_line = nsls;
-        _scroll_end_line = _station_list_separator_line - 1;
-        term_set_margin_top_bottom(shell_SCROLL_START_LINE, _scroll_end_line);
-        if (scroll_area_smaller) {
-            // Restore the previous cursor and if the line is beyond the scroll area, adjust it.
-            term_set_origin_mode(TERM_OM_IN_MARGINS);
-            term_cursor_restore();
-            scr_position_t pos = term_get_cursor_position();
-            if (pos.line > _scroll_end_line) {
-                term_cursor_moveto(_scroll_end_line, pos.column);
+    return (NULL);
+}
+
+static shell_escape_seq_handler _get_escseq_handler(sescseq_t escseq) {
+    return _escseq_handler[escseq];
+}
+
+static void _getline_continue() {
+    int ci;
+
+    // Process characters that are available.
+    while ((ci = term_getc()) >= 0) {
+        char c = (char)ci;
+        if (!_process_char(c, true)) {
+            // See if there is a handler registered for this, else BEEP
+            if (!shell_handle_control_character(c)) {
+                // Control or 8-bit character we don't deal with
+                putchar(BEL);
             }
-            return;
         }
+        // `while` will see if there are more chars available
     }
-    // Put screen back
-    term_set_origin_mode(TERM_OM_IN_MARGINS);
-    term_cursor_restore();
+    // No more input chars are available, but we haven't gotten EOL yet,
+    // hook for more to wake back up...
+    term_register_notify_on_input(_input_ready_hook);
 }
 
 static void _header_fill_fixed() {
@@ -133,6 +174,103 @@ static void _header_fill_fixed() {
     term_color_default();
     term_set_origin_mode(TERM_OM_IN_MARGINS);
     term_cursor_restore();
+}
+
+static bool _process_char(char c, bool process_ctrl) {
+    bool processed = false;
+    shell_getline_callback_fn fn = _getline_callback;
+
+    if (process_ctrl) {
+        // See if we are processing an ESC sequence.
+        if (_esc_collecting >= 0) {
+            if (_esc_collecting == 0) {
+                // We are looking for CSI, see if this is it.
+                if ('[' == c) {
+                    _esc_collected[_esc_collecting++] = c;
+                    _esc_collected[_esc_collecting] = '\0';
+                    processed = true;
+                }
+                else {
+                    _esc_collecting = ESC_NOT_IN_PROGRESS;
+                }
+            }
+            else {
+                // We are into the sequence, see if we have collected the whole thing.
+                //
+                _esc_collected[_esc_collecting++] = c;
+                _esc_collected[_esc_collecting] = '\0';
+                // Currently, we only support 'Up Arrow' "CSI A". When we support more
+                // this will need to do more
+                if (_esc_collecting == 2 && 'A' == c) {
+                    // This is 'Up Arrow'
+                    shell_escape_seq_handler fn = _get_escseq_handler(SES_KEY_ARROW_UP);
+                    if (fn) {
+                        processed = fn(SES_KEY_ARROW_UP, _esc_collected);
+                    }
+                }
+                _esc_collecting = ESC_NOT_IN_PROGRESS;
+            }
+        }
+        else {
+            switch (c) {
+            case '\n':
+            case '\r':
+                // EOL - Terminate the input line and give to callback.
+                _getline_buf[_getline_index] = '\0';
+                _getline_index = 0;
+                _getline_callback = NULL;
+                shell_register_input_available_handler(NULL);
+                fn(_getline_buf);
+                return (true);
+                break;
+            case BS:
+            case DEL:
+                // Backspace/Delete - move back if we aren't at the BOL
+                if (_getline_index > 0) {
+                    _getline_index--;
+                    term_cursor_left_1();
+                    term_erase_char(1);
+                }
+                _getline_buf[_getline_index] = '\0';
+                processed = true;
+                break;
+            case ESC:
+                // First, see if there is a handler registered for ESC. If so, let it handle it.
+                processed = shell_handle_control_character(c);
+                if (!processed) {
+                    // Escape sequence. Most begin with CSI (ESC[)
+                    _esc_collecting = 0; // mark that we need the first char of the sequence
+                    _esc_collected[0] = '\0';
+                    processed = true;;
+                }
+                break;
+            case '\030':
+                // ^X Erases the current input
+                while (_getline_index > 0) {
+                    _getline_buf[_getline_index] = '\0';
+                    term_cursor_left_1();
+                    term_erase_char(1);
+                    _getline_index--;
+                }
+                _getline_index = 0;
+                _getline_buf[_getline_index] = '\0';
+                processed = true;
+                break;
+            }
+        }
+    }
+    if (!processed && c >= ' ' && c < DEL) {
+        if (_getline_index < (shell_GETLINE_MAX_LEN_ - 1)) {
+            _getline_buf[_getline_index++] = c;
+            putchar(c);
+        }
+        else {
+            // Alert them that they are at the end
+            putchar(BEL);
+        }
+        processed = true;
+    }
+    return (processed);
 }
 
 static void _status_fill_fixed() {
@@ -149,91 +287,37 @@ static void _status_fill_fixed() {
     term_cursor_restore();
 }
 
-static void _shell_getline_continue() {
-    int ci;
-    shell_getline_callback_fn fn = _getline_callback;
-
-    // Process characters that are available.
-    while ((ci = term_getc()) >= 0) {
-        char c = (char)ci;
-        if ('\n' == c || '\r' == c) {
-            // EOL - Terminate the input line and give to callback.
-            _getline_buf[_getline_index] = '\0';
-            _getline_index = 0;
-            _getline_callback = NULL;
-            shell_register_input_available_handler(NULL);
-            fn(_getline_buf);
-            return;
-        }
-        if (BS == c || DEL == c) {
-            // Backspace/Delete - move back if we aren't at the BOL
-            if (_getline_index > 0) {
-                _getline_index--;
-                term_cursor_left_1();
-                term_erase_char(1);
-            }
-            _getline_buf[_getline_index] = '\0';
-        }
-        else if (ESC == c) {
-            // Escape - erase the line
-            while (_getline_index > 0) {
-                _getline_buf[_getline_index] = '\0';
-                term_cursor_left_1();
-                term_erase_char(1);
-                _getline_index--;
-            }
-            _getline_index = 0;
-            _getline_buf[_getline_index] = '\0';
-            // If there is a handler registered for ESC let it handle it too
-            shell_handle_control_character(c);
-        }
-        else if (c >= ' ' && c < DEL) {
-            if (_getline_index < (shell_GETLINE_MAX_LEN_ - 1)) {
-                _getline_buf[_getline_index++] = c;
-                putchar(c);
-            }
-            else {
-                // Alert them that they are at the end
-                putchar(BEL);
-            }
-        }
-        else {
-            // See if there is a handler registered for this, else BEEP
-            if (!shell_handle_control_character(c)) {
-                // Control or 8-bit character we don't deal with
-                putchar(BEL);
-            }
-        }
-        // `while` will see if there are more chars available
-    }
-    // No more input chars are available, but we haven't gotten EOL yet,
-    // hook for more to wake back up...
-    term_register_notify_on_input(_input_ready_hook);
-}
-
 static void _term_init() {
     _wraptext_on = false;
     memset(_wraptext_line, 0, sizeof(_wraptext_line));
     _wraptext_column = 0;
     _input_available_handler = NULL;
     memset(_control_char_handler, 0, sizeof(_control_char_handler));
+    memset(_escseq_handler, 0, sizeof(_escseq_handler));
     term_reset();
     term_color_default();
     term_set_type(VT_510_TYPE_SPEC, VT_510_ID_SPEC);
     term_set_title(shell_NAME_VERSION);
     term_set_size(shell_LINES, shell_COLUMNS);
-    term_clear();
-    _draw_station_list_box(0);
+    term_clear(true);
+    //_draw_station_list_box(0);
     term_cursor_on(false);
     term_cursor_moveto(1,1);
     shell_use_output_color();
 }
 
+
+
+
 void shell_build(void) {
     _term_init();
-    _header_fill_fixed();
-    _status_fill_fixed();
-    shell_update_status();
+    //_header_fill_fixed();
+    //_status_fill_fixed();
+    //shell_update_status();
+    term_color_default();
+    term_text_normal();
+
+    cmd_module_init();
 }
 
 term_color_pair_t shell_color_get() {
@@ -253,18 +337,18 @@ void shell_color_set(term_color_t fg, term_color_t bg) {
     term_color_fg(fg);
 }
 
-static shell_control_char_handler shell_get_control_char_handler(char c) {
-    if (iscntrl(c)) {
-        return _control_char_handler[(int)c];
-    }
-    return (NULL);
-}
-
 void shell_getline(shell_getline_callback_fn getline_cb) {
     _getline_callback = getline_cb;
-    shell_register_input_available_handler(_shell_getline_continue);
+    shell_register_input_available_handler(_getline_continue);
     // Use the 'continue' function to process
-    _shell_getline_continue();
+    _getline_continue();
+}
+
+void shell_getline_append(const char* appndstr) {
+    char c;
+    while ((c = *appndstr++) && (_getline_index < (shell_GETLINE_MAX_LEN_ - 1))) {
+        _process_char(c, false);
+    }
 }
 
 void shell_getline_cancel(shell_input_available_handler input_handler) {
@@ -276,7 +360,7 @@ void shell_getline_cancel(shell_input_available_handler input_handler) {
 
 bool shell_handle_control_character(char c) {
     if (iscntrl(c)) {
-        shell_control_char_handler handler_fn = _control_char_handler[(int)c];
+        shell_control_char_handler handler_fn = _get_control_char_handler(c);
         if (handler_fn) {
             handler_fn(c);
             return (true);
@@ -367,6 +451,10 @@ void shell_put_apptext(char* str) {
     }
 }
 
+void shell_putc(uint8_t c) {
+    putchar(c);
+}
+
 void shell_puts(char* str) {
     if (_wraptext_on) {
         putchar('\n');
@@ -379,6 +467,10 @@ void shell_register_control_char_handler(char c, shell_control_char_handler hand
     if (iscntrl(c)) {
         _control_char_handler[(int)c] = handler_fn;
     }
+}
+
+void shell_register_esc_seq_handler(sescseq_t escseq, shell_escape_seq_handler handler_fn) {
+    _escseq_handler[escseq] = handler_fn;
 }
 
 void shell_register_input_available_handler(shell_input_available_handler handler_fn) {
@@ -423,9 +515,9 @@ void shell_module_init() {
         board_panic("!!! shell_module_init already called. !!!");
     }
     _initialized = true;
-    
-    cmd_module_init();
+
     term_module_init();
+    _esc_collecting = ESC_NOT_IN_PROGRESS;
     //
     // Register our message handler
     cmt_msg_hdlr_add(MSG_INPUT_CHAR_READY, _shell_handle_input_char_ready);

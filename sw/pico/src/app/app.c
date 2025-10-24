@@ -15,6 +15,7 @@
 #include "debug_support.h"
 #include "util.h"
 
+#include "shell/cmd/cmd.h"
 #include "shell/shell.h"
 #include "deviceops/prog_device.h"
 #include "deviceops/pdops.h"
@@ -123,6 +124,9 @@ static void _clear_and_enable_input(void* data) {
     //
     // Built the shell
     shell_build();
+    term_text_normal();
+    // Activate the command processor
+    cmd_activate(true);
 }
 
 static void _display_proc_status(void* data) {

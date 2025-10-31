@@ -201,12 +201,21 @@ extern bool shell_handle_control_character(char c);
 
 /**
  * @brief Version of `printf` that adds a leading newline if interrupting
- *        printing of Morse Code.
+ *        printing of app output.
  * @ingroup ui
  *
  * @return Number of characters printed.
  */
 int shell_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
+
+/**
+ * @brief Version of `printf` that prints in red and adds a leading newline if interrupting
+ *        printing of app output.
+ * @ingroup ui
+ *
+ * @return Number of characters printed.
+ */
+int shell_printferr(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
 
 /**
  * @brief Print the code-text string. This is 0-n spaces and a character.

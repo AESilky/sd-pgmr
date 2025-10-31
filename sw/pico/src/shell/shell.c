@@ -393,6 +393,23 @@ int shell_printf(const char* format, ...) {
     return (pl);
 }
 
+int shell_printferr(const char* format, ...) {
+    term_color_pair_t cs = shell_color_get();
+    shell_color_set(TERM_CHR_COLOR_BR_RED, TERM_CHR_COLOR_BLACK);
+    int pl = 0;
+    // if (_wraptext_on) {
+    //     putchar('\n');
+    //     pl = 1;
+    // }
+    va_list xArgs;
+    va_start(xArgs, format);
+    pl += vfctprintf(_printc_for_printf_term, NULL, format, xArgs);
+    va_end(xArgs);
+    shell_color_set(cs.fg, cs.bg);
+
+    return (pl);
+}
+
 static void _putchar_for_app(char c) {
     if ('\n' == c) {
         putchar(c);

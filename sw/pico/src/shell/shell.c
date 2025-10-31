@@ -20,6 +20,7 @@
 #include <string.h>
 
 #define ESC_NOT_IN_PROGRESS (-1)
+#define ESC_CHARS_MAX 8
 
 static bool _initialized;
 
@@ -34,7 +35,7 @@ static char _getline_buf[shell_GETLINE_MAX_LEN_];
 static int16_t _getline_index;
 
 static int _esc_collecting; // If -1, not collecting. Else, index to store the next received character until done.
-static char _esc_collected[8]; // Room to collect characters for an escape sequence.
+static char _esc_collected[ESC_CHARS_MAX + 1]; // Room to collect characters for an escape sequence.
 
 static bool _wraptext_on;
 static int _wraptext_column;
@@ -208,6 +209,11 @@ static bool _process_char(char c, bool process_ctrl) {
                         processed = fn(SES_KEY_ARROW_UP, _esc_collected);
                     }
                 }
+                _esc_collecting = ESC_NOT_IN_PROGRESS;
+            }
+            if (_esc_collecting >= ESC_CHARS_MAX) {
+                // We've collected as many characters as we can hold and we haven't received
+                // something that we can process. Reset the ESC state.
                 _esc_collecting = ESC_NOT_IN_PROGRESS;
             }
         }

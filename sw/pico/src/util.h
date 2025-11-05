@@ -61,6 +61,10 @@ typedef unsigned int word;
 typedef bool boolean;
 typedef uint8_t byte;
 
+// Memory/Computer Sizes
+#define ONE_K (1024)
+#define ONE_M (ONE_K*ONE_K)
+
 // Some general purpose time constants
 #define ONE_SECOND_MS 1000
 #define ONE_SECOND_US (1000*ONE_SECOND_MS)
@@ -72,6 +76,8 @@ typedef uint8_t byte;
 #define FIVE_MINUTES_MS 300000
 #define TEN_MINUTES_MS 600000
 #define ONE_HOUR_MS 3600000
+
+#define Seconds_ms( n ) ( n * ONE_SECOND_MS )
 
 typedef enum _STRDATETIME_CTRL_ {
     SDTC_TIME               = 0x0001,
@@ -263,6 +269,18 @@ extern const char* strskipws(const char* str);
  * @param str The string to uppercase.
  */
 extern void strtoupper(char* dest, const char* str);
+
+/**
+ * @brief Convert a hexadecimal string to an unsigned integer and indicate successful conversion.
+ * @ingroup util
+ *
+ * This uses hstrtoul, taking care of checking for successful conversion.
+ *
+ * @param str The string to convert
+ * @param success Pointer to a bool that will be set `true` on success
+ * @return unsigned int The converted value or 0.
+ */
+extern unsigned int uint_from_hexstr(const char* str, bool* success);
 
 /**
  * @brief Convert a string to an unsigned integer and indicate successful conversion.

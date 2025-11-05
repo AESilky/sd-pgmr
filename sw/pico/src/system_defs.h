@@ -44,6 +44,7 @@ extern "C" {
 #define SPI_SD_DISP_SCK         2               // DP-4
 #define SPI_SD_CS               5               // DP-7
 #define SPI_DISPLAY_CS          6               // DP-9
+#define SPI_DISPLAY_CTRL        7               // DP-10 Display Control (not Data)
 #define SPI_SD_DISP_SPEED      (2200 * 1000)    // SPI at 2.2MHz
 #define SPI_CS_ENABLE           0               // Chip Select is active LOW
 #define SPI_CS_DISABLE          1               // Chip Select is active LOW
@@ -65,7 +66,7 @@ extern "C" {
 #define OP8_ADDRH_LD             6              // 3 (011/110)= Addr Latch HIGH Load
 #define OP8_DEV_SEL              1              // 4 (100/001)= Device (FlashROM) Select
 #define OP8_DISP_RST             5              // 5 (101/101)= Display Reset
-#define OP8_DISP_CTRL            3              // 6 (110/011)= Display Control (not Data)
+#define OP8_NOP                  3              // 6 (110/011)= No-Operation
 #define OP8_ADDR_CLK             7              // 7 (111/111)= Address Advance Clock
 
 // Operations controlled directly by a GPIO
@@ -87,14 +88,7 @@ extern "C" {
 #define DATA6                   16              // DP-21
 #define DATA7                   17              // DP-22
 #define DATA_BUS_MASK           0x0003FC00      // Mask to set all 8 bits at once: 0000 0000 0000 0011 1111 1100 0000 0000
-
-// UART Functions
-//
-#define DEBUG_UART           uart0              // UART-0 is used for debug probe serial
-#define DEBUG1_TX                0              // DP-1 GPIO0 is used for debug1 TX
-#define DEBUG1_RX                1              // DP-2 GPIO1 is used for debug1 RX
-#define DEBUG2_TX               12              // DP-14 GPIO12 is used for debug2 TX
-#define DEBUG2_RX               13              // DP-15 GPIO13 is used for debug2 RX
+#define DATA_BUS_SHIFT          10              // Shift to move an 8-bit value up/down to/from the DATA Bus
 
 // PIO Blocks
 //
@@ -107,7 +101,7 @@ extern "C" {
 // This is a A/B quadrature encoder that can be decoded using a PIO (must be sequential)
 #define ROTARY_A_GPIO            0              // DP-1
 #define ROTARY_B_GPIO            1              // DP-2
-#define ROTARY_SW                8              // DP-11
+#define ROTARY_SW_GPIO           8              // DP-11
 // Command/Attention switch (separate from rotary encoder)
 #define CMD_ATTN_SW_GPIO        22              // DP-29
 
@@ -121,14 +115,18 @@ extern "C" {
 
 // IRQ Inputs
 //
-#define IRQ_CMD_ATTN_SW            CMD_ATTN_SW_GPIO
-#define IRQ_ROTARY_SW           ROTARY_SW       // DP-11
-#define IRQ_ROTARY_TURN         ROTARY_A_GPIO   // DP-1
+#define IRQ_CMD_ATTN_SW         CMD_ATTN_SW_GPIO
+#define IRQ_ROTARY_SW           ROTARY_SW_GPIO
+#define IRQ_ROTARY_TURN         ROTARY_A_GPIO
 
 // PWM - Used for a recurring interrupt for scheduled messages, sleep, housekeeping
+//    RP2040 has 8 slices, RP2350 has 12. Use the last slice.
 //
-#define CMT_PWM_RECINT_SLICE    11              // RP2040 has 8 slices, RP2350 has 12.
-
+#if PICO_RP2350
+#define CMT_PWM_RECINT_SLICE    11
+#else
+#define CMT_PWM_RECINT_SLICE     7
+#endif
 
 #ifdef __cplusplus
 }

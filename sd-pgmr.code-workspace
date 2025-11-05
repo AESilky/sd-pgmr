@@ -14,7 +14,9 @@
 			"datetime.h": "c",
 			"types.h": "c",
 			"rtc.h": "c",
-			"picoutil.h": "c"
+			"picoutil.h": "c",
+			"debug_support.h": "c",
+			"util.h": "c"
 		},
 		"cortex-debug.variableUseNaturalFormat": false
 	}

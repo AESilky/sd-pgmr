@@ -156,16 +156,21 @@ const char* num_ordinal(int num){
 
 int parse_line(char* line, char* argv[], int maxargs) {
     for (int i = 0; i < maxargs; i++) {
-        argv[i] = line; // Store the argument
-        int chars_skipped = skip_to_ws_eol(line);
-        // See if this would be the EOL
-        if ('\000' == *(line + chars_skipped)) {
-            argv[i + 1] = NULL;
-            return (i + 1);
+        if (*line) {
+            argv[i] = line; // Store the argument
+            int chars_skipped = skip_to_ws_eol(line);
+            // See if this would be the EOL
+            if ('\000' == *(line + chars_skipped)) {
+                argv[i + 1] = NULL;
+                return (i + 1);
+            }
+            // Store a '\000' for the arg and move to the next
+            *(line + chars_skipped) = '\000';
+            line = (char*)strskipws(line + chars_skipped + 1);
         }
-        // Store a '\000' for the arg and move to the next
-        *(line + chars_skipped) = '\000';
-        line = (char*)strskipws(line + chars_skipped + 1);
+        else {
+            return (i);
+        }
     }
     argv[maxargs] = NULL;
     return (maxargs);
@@ -306,6 +311,18 @@ void strtoupper(char* dest, const char* str) {
         *dest++ = toupper(*str++);
         *dest = '\000';
     }
+}
+
+unsigned int uint_from_hexstr(const char* str, bool* success) {
+    char* unparsed;
+    *success = true; // Be an optimist
+    unsigned long retval = strtoul(str, &unparsed, 16);
+    if (*unparsed) {
+        retval = 0;
+        *success = false;
+    }
+
+    return (retval);
 }
 
 unsigned int uint_from_str(const char* str, bool* success) {

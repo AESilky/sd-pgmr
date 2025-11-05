@@ -22,7 +22,7 @@ specific language governing permissions and limitations under the License.
 #include "pico/stdlib.h"
 //
 #include "ff.h"
-#include "util.h"  // calculate_checksum
+#include "./../include/util.h"  // calculate_checksum (need path to disambiguate from top-level util.h)
 //
 #include "rtc.h"
 

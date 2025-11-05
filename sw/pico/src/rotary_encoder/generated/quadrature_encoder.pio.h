@@ -14,7 +14,7 @@
 
 #define quadrature_encoder_wrap_target 15
 #define quadrature_encoder_wrap 28
-#define quadrature_encoder_pio_version 1
+#define quadrature_encoder_pio_version 0
 
 static const uint16_t quadrature_encoder_program_instructions[] = {
     0x000f, //  0: jmp    15
@@ -66,56 +66,5 @@ static inline pio_sm_config quadrature_encoder_program_get_default_config(uint o
     sm_config_set_wrap(&c, offset + quadrature_encoder_wrap_target, offset + quadrature_encoder_wrap);
     return c;
 }
-
-#include "hardware/clocks.h"
-#include "hardware/gpio.h"
-// max_step_rate is used to lower the clock of the state machine to save power
-// if the application doesn't require a very high sampling rate. Passing zero
-// will set the clock to the maximum, which gives a max step rate of around
-// 8.9 Msteps/sec at 125MHz
-static inline void quadrature_encoder_program_init(PIO pio, uint sm, uint offset, uint pin, int max_step_rate)
-{
-	pio_sm_set_consecutive_pindirs(pio, sm, pin, 2, false);
-	gpio_pull_up(pin);
-	gpio_pull_up(pin + 1);
-	pio_sm_config c = quadrature_encoder_program_get_default_config(offset);
-	sm_config_set_in_pins(&c, pin); // for WAIT, IN
-	sm_config_set_jmp_pin(&c, pin); // for JMP
-	// shift to left, autopull disabled
-	sm_config_set_in_shift(&c, false, false, 32);
-	// don't join FIFO's
-	sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_NONE);
-	// passing "0" as the sample frequency,
-	if (max_step_rate == 0) {
-		sm_config_set_clkdiv(&c, 1.0);
-	} else {
-		// one state machine loop takes at most 14 cycles
-		float div = (float)clock_get_hz(clk_sys) / (14 * max_step_rate);
-		sm_config_set_clkdiv(&c, div);
-	}
-	pio_sm_init(pio, sm, offset, &c);
-	pio_sm_set_enabled(pio, sm, true);
-}
-// When requesting the current count we may have to wait a few cycles (average
-// ~11 sysclk cycles) for the state machine to reply. If we are reading multiple
-// encoders, we may request them all in one go and then fetch them all, thus
-// avoiding doing the wait multiple times. If we are reading just one encoder,
-// we can use the "get_count" function to request and wait
-static inline void quadrature_encoder_request_count(PIO pio, uint sm)
-{
-	pio->txf[sm] = 1;
-}
-static inline int32_t quadrature_encoder_fetch_count(PIO pio, uint sm)
-{
-	while (pio_sm_is_rx_fifo_empty(pio, sm))
-		tight_loop_contents();
-	return pio->rxf[sm];
-}
-static inline int32_t quadrature_encoder_get_count(PIO pio, uint sm)
-{
-	quadrature_encoder_request_count(pio, sm);
-	return quadrature_encoder_fetch_count(pio, sm);
-}
-
 #endif
 

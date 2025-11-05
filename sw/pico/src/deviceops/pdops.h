@@ -38,6 +38,36 @@ extern void pdo_addr_inc();
 extern void pdo_addr_set(uint32_t addr);
 
 /**
+ * @brief Read a byte of data from the device into the input buffer, then into the Pico.
+ *
+ * This performs two operations to get a byte from the device. It controls the device
+ * chip-select and output-enable to read the byte into the input register, then it reads
+ * the input register into the pico.
+ *
+ * The address must have been set using `pdo_addr_set`.
+ *
+ * @see pdo_addr_set(uint32_t addr)
+ *
+ * @return uint8_t 8-bit byte from the device
+ */
+extern uint8_t pdo_data_get();
+
+/**
+ * @brief Set the data into the output buffers for the device, then to the device.
+ *
+ * This performs two operations to write a byte to the device. It writes the byte to the
+ * data buffer, then it controls the chip-select and write-enable on the device to write
+ * the byte to the device.
+ *
+ * The address must have been set using `pdo_addr_set`.
+ *
+ * @see pdo_addr_set(uint32_t addr)
+ *
+ * @param data 8-bit data byte
+ */
+extern void pdo_data_set(uint8_t data);
+
+/**
  * @brief Turn the Programmable-Device Power ON/OFF.
  *
  * @param on True:ON, False:OFF
@@ -55,13 +85,6 @@ static inline void pdo_pwr_on(bool on) {
 static inline bool pdo_pwr_is_on() {
     return (gpio_get(OP_DEVICE_PWR) != 0);
 }
-
-/**
- * @brief Assert the device WR_EN signal.
- *
- * @param enable True:Enabled False:Not-Enabled
- */
-extern void pdo_wr_en(bool enable);
 
 /**
  * @brief Initialize the module. Must be called once/only-once before module use.

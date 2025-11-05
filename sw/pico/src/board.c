@@ -66,6 +66,7 @@ int board_init() {
 
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     gpio_init(LED_PIN);
+    gpio_put(LED_PIN, 1);
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
     // SPI 0 Pins for MircoSD Card and Display
@@ -83,8 +84,57 @@ int board_init() {
 
     // GPIO Outputs (other than SPI, I2C, UART, and chip-selects
 
-    //  Data Bus
-    //      Initially set them to input
+    //  Display
+    gpio_set_function(SPI_DISPLAY_CS, GPIO_FUNC_SIO);
+    gpio_put(SPI_DISPLAY_CS, 1);
+    gpio_set_dir(SPI_DISPLAY_CS, GPIO_OUT);
+    gpio_set_drive_strength(SPI_DISPLAY_CS, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(SPI_DISPLAY_CTRL, GPIO_FUNC_SIO);
+    gpio_put(SPI_DISPLAY_CTRL, 1);
+    gpio_set_dir(SPI_DISPLAY_CTRL, GPIO_OUT);
+    gpio_set_drive_strength(SPI_DISPLAY_CTRL, GPIO_DRIVE_STRENGTH_2MA);
+
+    // Operation Address Bits
+    gpio_set_function(OP8_BIT0, GPIO_FUNC_SIO);
+    gpio_put(OP8_BIT0, 0);
+    gpio_set_dir(OP8_BIT0, GPIO_OUT);
+    gpio_set_drive_strength(OP8_BIT0, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(OP8_BIT1, GPIO_FUNC_SIO);
+    gpio_put(OP8_BIT1, 0);
+    gpio_set_dir(OP8_BIT1, GPIO_OUT);
+    gpio_set_drive_strength(OP8_BIT1, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(OP8_BIT2, GPIO_FUNC_SIO);
+    gpio_put(OP8_BIT2, 0);
+    gpio_set_dir(OP8_BIT2, GPIO_OUT);
+    gpio_set_drive_strength(OP8_BIT2, GPIO_DRIVE_STRENGTH_2MA);
+    // Operation Control
+    gpio_set_function(OP_DEVICE_PWR, GPIO_FUNC_SIO);
+    gpio_put(OP_DEVICE_PWR, 0);
+    gpio_set_dir(OP_DEVICE_PWR, GPIO_OUT);
+    gpio_set_drive_strength(OP_DEVICE_PWR, GPIO_DRIVE_STRENGTH_12MA);
+    //
+    // DP_DATA_RD is initialized in the debug init (debug_hw.c)
+    //
+    // gpio_set_function(OP_DATA_RD, GPIO_FUNC_SIO);
+    // gpio_put(OP_DATA_RD, 1);
+    // gpio_set_dir(OP_DATA_RD, GPIO_OUT);
+    // gpio_set_drive_strength(OP_DATA_RD, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(OP_DATA_WR, GPIO_FUNC_SIO);
+    gpio_set_dir(OP_DATA_WR, GPIO_OUT);
+    gpio_put(OP_DATA_WR, 1);
+    gpio_set_drive_strength(OP_DATA_WR, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(OP_DATA_LATCH, GPIO_FUNC_SIO);
+    gpio_put(OP_DATA_LATCH, 0);
+    gpio_set_dir(OP_DATA_LATCH, GPIO_OUT);
+    gpio_set_drive_strength(OP_DATA_LATCH, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(OP_DEVICE_WR, GPIO_FUNC_SIO);
+    gpio_put(OP_DEVICE_WR, 1);
+    gpio_set_dir(OP_DEVICE_WR, GPIO_OUT);
+    gpio_set_drive_strength(OP_DEVICE_WR, GPIO_DRIVE_STRENGTH_2MA);
+
+    // GPIO Inputs
+
+    //  Data Bus (Initially set to input)
     gpio_set_function(DATA0, GPIO_FUNC_SIO);
     gpio_set_dir(DATA0, GPIO_IN);
     gpio_set_drive_strength(DATA0, GPIO_DRIVE_STRENGTH_2MA);
@@ -112,45 +162,6 @@ int board_init() {
     gpio_set_function(DATA7, GPIO_FUNC_SIO);
     gpio_set_dir(DATA7, GPIO_IN);
     gpio_set_drive_strength(DATA7, GPIO_DRIVE_STRENGTH_2MA);
-    // Operation Address Bits
-    gpio_set_function(OP8_BIT0, GPIO_FUNC_SIO);
-    gpio_set_dir(OP8_BIT0, GPIO_OUT);
-    gpio_set_drive_strength(OP8_BIT0, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP8_BIT0, 0);
-    gpio_set_function(OP8_BIT1, GPIO_FUNC_SIO);
-    gpio_set_dir(OP8_BIT1, GPIO_OUT);
-    gpio_set_drive_strength(OP8_BIT1, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP8_BIT1, 0);
-    gpio_set_function(OP8_BIT2, GPIO_FUNC_SIO);
-    gpio_set_dir(OP8_BIT2, GPIO_OUT);
-    gpio_set_drive_strength(OP8_BIT2, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP8_BIT2, 0);
-    // Operation Control
-    gpio_set_function(OP_DEVICE_PWR, GPIO_FUNC_SIO);
-    gpio_set_dir(OP_DEVICE_PWR, GPIO_OUT);
-    gpio_set_drive_strength(OP_DEVICE_PWR, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DEVICE_PWR, 0);
-    //
-    // DP_DATA_RD is initialized in the debug init (debug_hw.c)
-    //
-    // gpio_set_function(OP_DATA_RD, GPIO_FUNC_SIO);
-    // gpio_set_dir(OP_DATA_RD, GPIO_OUT);
-    // gpio_set_drive_strength(OP_DATA_RD, GPIO_DRIVE_STRENGTH_2MA);
-    // gpio_put(OP_DATA_RD, 1);
-    gpio_set_function(OP_DATA_WR, GPIO_FUNC_SIO);
-    gpio_set_dir(OP_DATA_WR, GPIO_OUT);
-    gpio_set_drive_strength(OP_DATA_WR, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DATA_WR, 1);
-    gpio_set_function(OP_DATA_LATCH, GPIO_FUNC_SIO);
-    gpio_set_dir(OP_DATA_LATCH, GPIO_OUT);
-    gpio_set_drive_strength(OP_DATA_LATCH, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DATA_LATCH, 0);
-    gpio_set_function(OP_DEVICE_WR, GPIO_FUNC_SIO);
-    gpio_set_dir(OP_DEVICE_WR, GPIO_OUT);
-    gpio_set_drive_strength(OP_DEVICE_WR, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DEVICE_WR, 1);
-
-    // GPIO Inputs
 
     //    Rotary Encoder Input
     gpio_set_function(ROTARY_A_GPIO, GPIO_FUNC_SIO);

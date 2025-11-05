@@ -44,6 +44,7 @@ extern "C" {
 #define SPI_SD_DISP_SCK         2               // DP-4
 #define SPI_SD_CS               5               // DP-7
 #define SPI_DISPLAY_CS          6               // DP-9
+#define SPI_DISPLAY_CTRL        7               // DP-10 Display Control (not Data)
 #define SPI_SD_DISP_SPEED      (2200 * 1000)    // SPI at 2.2MHz
 #define SPI_CS_ENABLE           0               // Chip Select is active LOW
 #define SPI_CS_DISABLE          1               // Chip Select is active LOW
@@ -65,7 +66,7 @@ extern "C" {
 #define OP8_ADDRH_LD             6              // 3 (011/110)= Addr Latch HIGH Load
 #define OP8_DEV_SEL              1              // 4 (100/001)= Device (FlashROM) Select
 #define OP8_DISP_RST             5              // 5 (101/101)= Display Reset
-#define OP8_DISP_CTRL            3              // 6 (110/011)= Display Control (not Data)
+#define OP8_NOP                  3              // 6 (110/011)= No-Operation
 #define OP8_ADDR_CLK             7              // 7 (111/111)= Address Advance Clock
 
 // Operations controlled directly by a GPIO

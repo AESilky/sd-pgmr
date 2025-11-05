@@ -6296,6 +6296,20 @@
 			(embedded_fonts no)
 		)
 	)
+	(rectangle
+		(start 130.81 66.04)
+		(end 222.25 128.27)
+		(stroke
+			(width 0)
+			(type solid)
+			(color 194 0 0 1)
+		)
+		(fill
+			(type color)
+			(color 194 194 194 0.2)
+		)
+		(uuid 75df4975-1a10-43b7-b03b-368365d0f2ad)
+	)
 	(text "3.3V Sourced\nfrom Pico"
 		(exclude_from_sim no)
 		(at 183.642 183.896 0)
@@ -6305,6 +6319,17 @@
 			)
 		)
 		(uuid "127cd643-2723-40ae-bfc2-7f2c4f706b3c")
+	)
+	(text "SEE: ECO-0001_1 For corrected circuit."
+		(exclude_from_sim no)
+		(at 176.53 68.072 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+				(color 194 0 0 1)
+			)
+		)
+		(uuid "41974d18-4690-4521-9b57-dc09df91cc66")
 	)
 	(text "5V Sourced\nfrom USB"
 		(exclude_from_sim no)
@@ -14657,8 +14682,8 @@
 		(at 173.99 113.03 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "042e7d3f-5745-47ba-8ac7-8700495b29f0")
 		(property "Reference" "Q2"
@@ -14798,8 +14823,8 @@
 		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "0ff1fca1-9aa3-4070-9d65-993b78d23f05")
 		(property "Reference" "R4"
@@ -14934,8 +14959,8 @@
 		(at 151.13 86.36 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "17628860-18a9-4350-bdb9-e236ec2f7de1")
 		(property "Reference" "Q1"
@@ -15653,8 +15678,8 @@
 		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "48491677-851c-4dce-962f-ca3dbff98008")
 		(property "Reference" "#PWR017"
@@ -15717,8 +15742,8 @@
 		(at 176.53 74.93 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "4fc441d3-bc9d-465a-bdfb-7a57fc470dd8")
 		(property "Reference" "#PWR016"
@@ -15974,8 +15999,8 @@
 		(at 203.2 82.55 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "5768def4-c815-4e8d-90b0-4f5831849ded")
 		(property "Reference" "#PWR021"
@@ -16262,8 +16287,8 @@
 		(at 205.74 82.55 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "622b027b-07ad-4007-a6da-e9248e337bf7")
 		(property "Reference" "#FLG02"
@@ -16591,8 +16616,8 @@
 		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "6adaedd5-ca8e-4846-970a-f4f6e6ba094a")
 		(property "Reference" "#PWR022"
@@ -16655,8 +16680,8 @@
 		(at 203.2 92.71 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "6ddc667d-7e8b-497a-b0ca-4de7f4f55e5e")
 		(property "Reference" "R7"
@@ -18391,8 +18416,8 @@
 		(at 185.42 87.63 90)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "a17cf600-9daa-42f1-96e2-a8e143b4c14f")
 		(property "Reference" "Q3"
@@ -18528,8 +18553,8 @@
 		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "a305dff5-bebf-4354-aa1e-4a7d9cabd66a")
 		(property "Reference" "#PWR014"
@@ -18953,8 +18978,8 @@
 		(at 157.48 95.25 90)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "b111120b-8ded-49ca-9b7c-47cef369127a")
 		(property "Reference" "R2"
@@ -19347,8 +19372,8 @@
 		(at 161.29 99.06 90)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "c7b2cc0b-8895-4357-8ddf-817938fffd42")
 		(property "Reference" "LED1"
@@ -19510,8 +19535,8 @@
 		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "c9e70c1c-7979-4060-a6e1-78e71a5e6d09")
 		(property "Reference" "R3"
@@ -20563,8 +20588,8 @@
 		(at 203.2 100.33 90)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "e4316ae8-8f16-4428-a820-c6bb90e3b7bb")
 		(property "Reference" "LED3"
@@ -20648,8 +20673,8 @@
 		(mirror x)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_bom no)
+		(on_board no)
 		(dnp no)
 		(uuid "ebd967b1-a594-4e1d-a6b5-dc5e0d2af792")
 		(property "Reference" "R1"
@@ -21162,6 +21187,48 @@
 				(path "/e911f333-789e-45e5-911e-dcecec8cc0e7"
 					(reference "#FLG01")
 					(unit 1)
+				)
+			)
+		)
+	)
+	(sheet
+		(at 270.51 294.64)
+		(size 16.51 12.7)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "cf735f4c-d6da-44f1-ad44-e3803fb9e5c5")
+		(property "Sheetname" "Rework-1.1-transistors (page 2)"
+			(at 270.51 293.9284 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "eco-0001_a.kicad_sch"
+			(at 270.51 307.9246 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "SD-PGMR"
+				(path "/e911f333-789e-45e5-911e-dcecec8cc0e7"
+					(page "2")
 				)
 			)
 		)

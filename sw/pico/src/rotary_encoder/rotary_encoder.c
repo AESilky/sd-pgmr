@@ -1,7 +1,7 @@
 /**
  * Some content Copyright (c) 2021 pmarques-dev @ github
  *
- * Modifications Copyright 2023 aesilky
+ * Modifications Copyright 2023-25 aesilky
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -39,6 +39,7 @@
 #include "cmt/cmt.h"
 
 #include "pico/stdlib.h"
+#include "hardware/clocks.h"
 #include "hardware/pio.h"
 #include "hardware/timer.h"
 #include "hardware/gpio.h"
@@ -58,6 +59,55 @@ static volatile int32_t _enc_t_prior;
 static volatile int32_t _enc_value;
 
 static void _gpio_event_string(char *buf, uint32_t events);
+
+
+// max_step_rate is used to lower the clock of the state machine to save power
+// if the application doesn't require a very high sampling rate. Passing zero
+// will set the clock to the maximum, which gives a max step rate of around
+// 8.9 Msteps/sec at 125MHz
+static inline void _quadrature_encoder_program_init(PIO pio, uint sm, uint offset, uint pin, int max_step_rate) {
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 2, false);
+    gpio_pull_up(pin);
+    gpio_pull_up(pin + 1);
+    pio_sm_config c = quadrature_encoder_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, pin); // for WAIT, IN
+    sm_config_set_jmp_pin(&c, pin); // for JMP
+    // shift to left, autopull disabled
+    sm_config_set_in_shift(&c, false, false, 32);
+    // don't join FIFO's
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_NONE);
+    // passing "0" as the sample frequency,
+    if (max_step_rate == 0) {
+        sm_config_set_clkdiv(&c, 1.0);
+    }
+    else {
+     // one state machine loop takes at most 14 cycles
+        float div = (float)clock_get_hz(clk_sys) / (14 * max_step_rate);
+        sm_config_set_clkdiv(&c, div);
+    }
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+// When requesting the current count we may have to wait a few cycles (average
+// ~11 sysclk cycles) for the state machine to reply. If we are reading multiple
+// encoders, we may request them all in one go and then fetch them all, thus
+// avoiding doing the wait multiple times. If we are reading just one encoder,
+// we can use the "get_count" function to request and wait
+static inline void _quadrature_encoder_request_count(PIO pio, uint sm) {
+    pio->txf[sm] = 1;
+}
+static inline int32_t _quadrature_encoder_fetch_count(PIO pio, uint sm) {
+    bool rdy = false;
+    for (int i = 0; !rdy && i < 50000; i++) {
+        rdy = pio_sm_is_rx_fifo_empty(pio, sm);
+    }
+    return (rdy ? pio->rxf[sm] : -1);
+}
+static inline int32_t _quadrature_encoder_get_count(PIO pio, uint sm) {
+    _quadrature_encoder_request_count(pio, sm);
+    return _quadrature_encoder_fetch_count(pio, sm);
+}
+
 
 int32_t re_count() {
     return _enc_value;
@@ -79,11 +129,14 @@ void re_turn_irq_handler(uint gpio, uint32_t events) {
     int32_t new_value;
     // note: thanks to two's complement arithmetic delta will always
     // be correct even when new_value wraps around MAXINT / MININT
-    new_value = quadrature_encoder_get_count(PIO_ROTARY_BLOCK, PIO_ROTARY_SM);
-    _enc_delta = new_value - _enc_value;
-    _enc_value = new_value;
-    _enc_t_prior = _enc_t_last;
-    _enc_t_last = now_ms();
+    new_value = _quadrature_encoder_get_count(PIO_ROTARY_BLOCK, PIO_ROTARY_SM);
+    // We use '-1' as a special flag to indicate that there wasn't any data available.
+    if (new_value != -1) {
+        _enc_delta = new_value - _enc_value;
+        _enc_value = new_value;
+        _enc_t_prior = _enc_t_last;
+        _enc_t_last = now_ms();
+    }
 
     if (_enc_delta != 0) {
         cmt_msg_t msg;
@@ -105,7 +158,7 @@ void re_module_init() {
     _enc_t_prior = now_ms();
     _enc_t_last = _enc_t_prior;
     uint offset = pio_add_program(PIO_ROTARY_BLOCK, &quadrature_encoder_program);
-    quadrature_encoder_program_init(PIO_ROTARY_BLOCK, PIO_ROTARY_SM, offset, _PIN_rotary_ENC_AB, 0);
+    _quadrature_encoder_program_init(PIO_ROTARY_BLOCK, PIO_ROTARY_SM, offset, _PIN_rotary_ENC_AB, 0);
 
     _initialized = true;
 }

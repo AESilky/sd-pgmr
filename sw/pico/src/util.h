@@ -271,6 +271,18 @@ extern const char* strskipws(const char* str);
 extern void strtoupper(char* dest, const char* str);
 
 /**
+ * @brief Convert a hexadecimal string to an unsigned integer and indicate successful conversion.
+ * @ingroup util
+ *
+ * This uses hstrtoul, taking care of checking for successful conversion.
+ *
+ * @param str The string to convert
+ * @param success Pointer to a bool that will be set `true` on success
+ * @return unsigned int The converted value or 0.
+ */
+extern unsigned int uint_from_hexstr(const char* str, bool* success);
+
+/**
  * @brief Convert a string to an unsigned integer and indicate successful conversion.
  * @ingroup util
  *

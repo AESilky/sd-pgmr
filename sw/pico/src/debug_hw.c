@@ -42,9 +42,9 @@ void debug_uart_init() {
     //
     // Make sure the data read latch isn't driving the PD lines
     gpio_set_function(OP_DATA_RD, GPIO_FUNC_SIO);
+    gpio_put(OP_DATA_RD, 1);
     gpio_set_dir(OP_DATA_RD, GPIO_OUT);
     gpio_set_drive_strength(OP_DATA_RD, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_put(OP_DATA_RD, 1);
     //
     // Init DATA2 and DATA3 for the UART
     gpio_set_function(DEBUG_UART_TX_PIN, UART_FUNCSEL_NUM(DEBUG_UART_INST, DEBUG_UART_TX_PIN));

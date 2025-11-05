@@ -50,7 +50,10 @@ typedef enum MSG_ID_ {
     // Application functionality (APP) messages 0xC0 - 0xFF
     MSG_APP_NOOP = 0xC0,
     MSG_APP_TEST,
+    MSG_CMD_KEY_PRESSED,
+    MSG_CMD_INIT_TERMINAL,
     MSG_DISPLAY_MESSAGE,
+    MSG_INPUT_CHAR_READY,
 } msg_id_t;
 #define MSG_ID_CNT (0x100)
 

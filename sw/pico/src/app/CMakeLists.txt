@@ -5,6 +5,10 @@ target_sources(app INTERFACE
   app.c
 )
 
+target_include_directories(app INTERFACE
+  ${CMAKE_CURRENT_LIST_DIR}/include
+)
+
 target_link_libraries(app INTERFACE
     dskops
     shell

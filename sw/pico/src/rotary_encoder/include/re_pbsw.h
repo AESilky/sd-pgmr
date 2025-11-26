@@ -18,7 +18,7 @@ extern "C" {
  * @brief Initialize the rotary encoder push-button switch library.
  * @ingroup ui
  */
-extern void re_pbsw_module_init();
+extern void re_pbsw_minit();
 
 #ifdef __cplusplus
 }

@@ -8,16 +8,18 @@
  *
  */
 
-#include "devrdwr.h"
-#include "cmt/cmt.h"
-#include "shell/shell.h"
-#include "util.h"
+#include "cmds.h"
+
+#include "cmt.h"
+#include "include/util.h"
+
+#include "shell/include/shell.h"
 
 #include <ctype.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include "deviceops/pdops.h"
+#include "deviceops/include/pdops.h"
 
 #define DDRDWR_REPEAT_MS 10
 

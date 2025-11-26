@@ -42,22 +42,26 @@ typedef enum _CMD_HELP_DISPLAY_FMT_ {
 typedef int (*command_fn)(int argc, char** argv, const char* unparsed);
 
 /**
- * @brief Prototype for a command handler entry.
+ * @brief Command handler entry.
+ * @ingroup ui
+ *
+ * Information for a command. This structure is used to register a command
+ * with the command processor.
  */
 typedef struct _CMD_HANDLER_ENTRY {
-    /* Command function to call */
+    /** Command function to call */
     command_fn cmd;
-    /* Minimum number of characters to match of the command name. */
+    /** Minimum number of characters to match of the command name. */
     int min_match;
-    /* Name of the command (case sensitive). */
+    /** Name of the command (case sensitive). */
     char* name;
-    /*
+    /**
         String to print listing the usage of the arguments for the command.
         -or-
         ^Aaliased-for-command-name The name of the command this is an alias for.
     */
     char* usage;
-    /* String to print of the full description of the command. */
+    /** String to print of the full description of the command. */
     char* description;
 } cmd_handler_entry_t;
 

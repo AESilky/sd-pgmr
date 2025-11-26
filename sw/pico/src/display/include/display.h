@@ -170,7 +170,7 @@ extern int disp_write_buf(uint8_t* buf, size_t len);
  * @param invert True to invert the display, False for normal (top to bottom) display.
  *
  */
-extern void display_module_init(bool invert);
+extern void display_minit(bool invert);
 
 
 #ifdef __cplusplus

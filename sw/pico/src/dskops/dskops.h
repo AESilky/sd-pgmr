@@ -49,7 +49,7 @@ FRESULT dsk_unmount_sd();
  * @brief Initialize the module. Must be called once/only-once before module use.
  *
  */
-extern void dskops_module_init();
+extern void dskops_minit();
 
 #ifdef __cplusplus
 }

@@ -16,7 +16,7 @@
  *
 */
 #include "system_defs.h"
-#include "picohlp/rtc_support.h"
+#include "rtc_support.h"
 
 #include "board.h"
 
@@ -127,10 +127,6 @@ int board_init() {
     gpio_put(OP_DATA_LATCH, 0);
     gpio_set_dir(OP_DATA_LATCH, GPIO_OUT);
     gpio_set_drive_strength(OP_DATA_LATCH, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(OP_DEVICE_WR, GPIO_FUNC_SIO);
-    gpio_put(OP_DEVICE_WR, 1);
-    gpio_set_dir(OP_DEVICE_WR, GPIO_OUT);
-    gpio_set_drive_strength(OP_DEVICE_WR, GPIO_DRIVE_STRENGTH_2MA);
 
     // GPIO Inputs
 
@@ -141,15 +137,12 @@ int board_init() {
     gpio_set_function(DATA1, GPIO_FUNC_SIO);
     gpio_set_dir(DATA1, GPIO_IN);
     gpio_set_drive_strength(DATA1, GPIO_DRIVE_STRENGTH_2MA);
-    //
-    // Don't initialize DATA 2 or 3 at this time, as they are used for the initial UART stdio.
-    //
-    // gpio_set_function(DATA2, GPIO_FUNC_SIO);
-    // gpio_set_dir(DATA2, GPIO_IN);
-    // gpio_set_drive_strength(DATA2, GPIO_DRIVE_STRENGTH_2MA);
-    // gpio_set_function(DATA3, GPIO_FUNC_SIO);
-    // gpio_set_dir(DATA3, GPIO_IN);
-    // gpio_set_drive_strength(DATA3, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(DATA2, GPIO_FUNC_SIO);
+    gpio_set_dir(DATA2, GPIO_IN);
+    gpio_set_drive_strength(DATA2, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(DATA3, GPIO_FUNC_SIO);
+    gpio_set_dir(DATA3, GPIO_IN);
+    gpio_set_drive_strength(DATA3, GPIO_DRIVE_STRENGTH_2MA);
     gpio_set_function(DATA4, GPIO_FUNC_SIO);
     gpio_set_dir(DATA4, GPIO_IN);
     gpio_set_drive_strength(DATA4, GPIO_DRIVE_STRENGTH_2MA);

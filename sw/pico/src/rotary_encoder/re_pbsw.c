@@ -12,7 +12,7 @@
 #include "re_pbsw.h"
 
 #include "board.h"
-#include "cmt/cmt.h"
+#include "cmt.h"
 
 #include <stdio.h>
 
@@ -48,7 +48,7 @@ static volatile bool _initialized;
 // ====================================================================
 
 
-void re_pbsw_module_init() {
+void re_pbsw_minit() {
     // GPIO is initialized in `board.c` with the rest of the board.
     if (_initialized) {
         board_panic("!!! re_pbsw_module_init: Called more than once !!!");

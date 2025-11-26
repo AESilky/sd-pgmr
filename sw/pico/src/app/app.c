@@ -13,18 +13,22 @@
 
 #include "board.h"
 #include "debug_support.h"
-#include "util.h"
+#include "include/util.h"
+
+#include "shell.h"
+#include "hwrt_t.h"
+#include "picoutil.h"
+#include "cmt.h"
+#include "display.h"
+#include "dskops/dskops.h"
+#include "rotary_encoder/include/rotary_encoder.h"
+
+#include "deviceops/include/prog_device.h"
+#include "deviceops/include/pdops.h"
 
 #include "shell/cmd/cmd.h"
-#include "shell/shell.h"
-#include "deviceops/prog_device.h"
-#include "deviceops/pdops.h"
-#include "dskops/dskops.h"
-#include "hwrt/hwrt_t.h"
-#include "picohlp/picoutil.h"
-#include "cmt/cmt.h"
-#include "display/display.h"
-#include "rotary_encoder/rotary_encoder.h"
+#include "debugging/cmd/cmds.h"
+#include "deviceops/cmd/cmds.h"
 
 #include <stdio.h>
 
@@ -120,7 +124,7 @@ static void _clear_and_enable_input(void* data) {
 
 
     // Initialize the shell
-    shell_module_init();
+    shell_minit();
     //
     // Built the shell
     shell_build();
@@ -209,7 +213,7 @@ static void _show_psa(proc_status_accum_t* psa, int corenum) {
 // Initialization and Maintainence Functions
 // ############################################################################
 //
-static void _module_init(void) {
+static void _minit(void) {
     static bool _initialized = false;
 
     if (_initialized) {
@@ -222,15 +226,15 @@ static void _module_init(void) {
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
     cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_app_housekeeping);
 
-    pd_module_init();       // Programmable Device (Flash) module
+    pd_minit();       // Programmable Device (Flash) module
 
     // Initialize the display
-    display_module_init(true); // Initialize, and invert the display (as it is mounted upside down)
+    display_minit(true); // Initialize, and invert the display (as it is mounted upside down)
 }
 
 void start_app(void) {
     // Initialize modules used by the APP
-    _module_init();
+    _minit();
 
     // Setup the screen.
     display_clear(Paint);

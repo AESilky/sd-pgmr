@@ -8,18 +8,24 @@
 
 #include "cmd.h"
 #include "system_defs.h"
+#include "board.h"
 
-#include "cmt/cmt.h"
+#include "cmt.h"
 
-#include "shell/cmds/debug.h"
-#include "shell/cmds/devrdwr.h"
-#include "shell/term/term.h"
-#include "shell/shell.h"
+#include "term.h"
+#include "shell.h"
 
-#include "util.h"
+#include "include/util.h"
 #include "pico/printf.h"
 
+#include <stdlib.h> // malloc
 #include <string.h>
+
+
+typedef struct CMD_ENTRY_LL_ {
+    const cmd_handler_entry_t* che;
+    struct CMD_ENTRY_LL_* next;
+} cmd_entry_ll_t;
 
 #define CMD_LINE_MAX_ARGS 64
 
@@ -30,10 +36,14 @@ static char _cmdline_parsed[shell_GETLINE_MAX_LEN_];
 
 // Command processor declarations
 static int _cmd_cls(int argc, char** argv, const char* unparsed);
+static int _cmd_dec(int argc, char** argv, const char* unparsed);
 static int _cmd_help(int argc, char** argv, const char* unparsed);
+static int _cmd_hex(int argc, char** argv, const char* unparsed);
 static int _cmd_keys(int argc, char** argv, const char* unparsed);
 static int _cmd_proc_status(int argc, char** argv, const char* unparsed);
 static void _process_line(char* line);
+
+static cmd_entry_ll_t* _cmds = (cmd_entry_ll_t*)0;
 
 // Command processors framework
 static const cmd_handler_entry_t _cmd_cls_entry = {
@@ -44,12 +54,26 @@ static const cmd_handler_entry_t _cmd_cls_entry = {
     NULL,
     "Clear the terminal screen.\n",
 };
+static const cmd_handler_entry_t _cmd_dec_entry = {
+    _cmd_dec,
+    3,
+    "decimal",
+    "hexval1 [hexval2] [hexvaln...]]",
+    "Convert hex value(s) to decimal.\n",
+};
 static const cmd_handler_entry_t _cmd_help_entry = {
     _cmd_help,
     1,
     "help",
     "[-a|--all] [command_name [command_name...]]",
     "List of commands or information for a specific command(s).\n  -a|--all : Display hidden commands.\n",
+};
+static const cmd_handler_entry_t _cmd_hex_entry = {
+    _cmd_hex,
+    3,
+    "hex",
+    "decimal1 [decimal2] [decimaln...]]",
+    "Convert decimal value(s) to hex.\n",
 };
 static const cmd_handler_entry_t _cmd_keys_entry = {
     _cmd_keys,
@@ -66,25 +90,6 @@ static const cmd_handler_entry_t _cmd_proc_status_entry = {
     "Display process status per second.\n",
 };
 
-/**
- * @brief List of Command Handlers
- */
-static const cmd_handler_entry_t* _command_entries[] = {
-    & cmds_debug_entry,             // .debug - 'DOT' commands come first
-    & _cmd_proc_status_entry,       // .ps
-    & cmds_devaddr_entry,           // Device Address
-    & cmds_devaddr_n_entry,         // Device Address next
-    & _cmd_cls_entry,               // Clear Screen
-    & cmds_devpwr_entry,            // Device Power
-    & cmds_devrd_entry,             // Device Read
-    & cmds_devrd_n_entry,           // Device Read next
-    & cmds_devwr_entry,             // Device Write
-    & cmds_devwr_n_entry,           // Device Write next
-    & _cmd_help_entry,
-    & _cmd_keys_entry,
-    ((cmd_handler_entry_t*)0),      // Last entry must be a NULL
-};
-
 
 // Internal (non-command) declarations
 
@@ -95,11 +100,9 @@ static void _wakeup();
 // Class data
 
 static cmd_state_t _cmd_state = CMD_SNOOZING;
-//static term_color_pair_t _scr_color_save;
-//static scr_position_t _scr_cursor_position_save;
 
 
-// Command built-in functions (others are in the 'cmds' directory)
+// Command built-in functions
 
 static int _cmd_cls(int argc, char** argv, const char* unparsed) {
     if (argc > 1) {
@@ -111,8 +114,36 @@ static int _cmd_cls(int argc, char** argv, const char* unparsed) {
     return (0);
 }
 
+static int _cmd_dec(int argc, char** argv, const char* unparsed) {
+    bool multiple_vals = (argc > 2);
+
+    argv++; argc--; // Move past the command name
+    if (argc < 1) {
+        // We need at least 1 value to convert
+        cmd_help_display(&_cmd_dec_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    bool valid;
+    while(argc > 0) {
+        uint32_t v = uint_from_hexstr(*argv, &valid);
+        if (!valid) {
+            shell_printferr("Value error - '%s' is not a valid hex value.\n", *argv);
+            return (-1);
+        }
+        // Print the value. If there are more than 1 value, print what they entered and the converted value.
+        if (multiple_vals) {
+            shell_printf("%s: %u\n", *argv, v);
+        }
+        else {
+            shell_printf("%u\n", v);
+        }
+        argv++; argc--;
+    }
+
+    return (0);
+}
+
 static int _cmd_help(int argc, char** argv, const char* unparsed) {
-    const cmd_handler_entry_t** cmds;
     const cmd_handler_entry_t* cmd;
     bool disp_commands = true;
     bool disp_hidden = false;
@@ -128,10 +159,12 @@ static int _cmd_help(int argc, char** argv, const char* unparsed) {
     if (argc > 1) {
         char* user_cmd;
         for (int i = 1; i < argc; i++) {
-            cmds = _command_entries;
+            cmd_entry_ll_t* cmds = _cmds;
             user_cmd = *argv++;
             int user_cmd_len = strlen(user_cmd);
-            while (NULL != (cmd = *cmds++)) {
+            while (NULL != cmds) {
+                cmd = cmds->che;
+                cmds = cmds->next;
                 int cmd_name_len = strlen(cmd->name);
                 if (user_cmd_len <= cmd_name_len && user_cmd_len >= cmd->min_match) {
                     if (0 == strncmp(cmd->name, user_cmd, user_cmd_len)) {
@@ -148,15 +181,46 @@ static int _cmd_help(int argc, char** argv, const char* unparsed) {
         }
     }
     if (disp_commands) {
-        // List all of the commands with thier usage.
+        // List all of the commands with their usage.
         shell_puts("Commands:\n");
-        cmds = _command_entries;
-        while (NULL != (cmd = *cmds++)) {
+        cmd_entry_ll_t* cmds = _cmds;
+        while (NULL != cmds) {
+            cmd = cmds->che;
+            cmds = cmds->next;
             bool dot_cmd = ('.' == *(cmd->name));
             if (!dot_cmd || (dot_cmd && disp_hidden)) {
                 cmd_help_display(cmd, HELP_DISP_NAME);
             }
         }
+    }
+
+    return (0);
+}
+
+static int _cmd_hex(int argc, char** argv, const char* unparsed) {
+    bool multiple_vals = (argc > 2);
+
+    argv++; argc--; // Move past the command name
+    if (argc < 1) {
+        // We need at least 1 value to convert
+        cmd_help_display(&_cmd_hex_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    bool valid;
+    while (argc > 0) {
+        uint32_t v = uint_from_str(*argv, &valid);
+        if (!valid) {
+            shell_printferr("Value error - '%s' is not a valid decimal value.\n", *argv);
+            return (-1);
+        }
+        // Print the value. If there are more than 1 value, print what they entered and the converted value.
+        // Format the hex value to 2, 4, or 8 characters depending on how large it is.
+        char* hdf = (v > 0xFFFF ? "%08X\n" : (v > 0xFF ? "%04X\n" : "%02X\n"));
+        if (multiple_vals) {
+            shell_printf("%s: ", *argv);
+        }
+        shell_printf(hdf, v);
+        argv++; argc--;
     }
 
     return (0);
@@ -176,10 +240,20 @@ static int _cmd_keys(int argc, char** argv, const char* unparsed) {
     return (0);
 }
 
-static void _cmd_ps_print(const proc_status_accum_t* ps, int corenum) {
-    int uaf = ONE_SECOND_MS - ps->t_active;
-    shell_printf("Core %d: R:%hu UAF:%d LMSG: %2.2X LMT: %llu IS:0x%0.8X\n",
-        corenum, ps->retrieved, ps->t_active, uaf, ps->msg_longest, ps->t_msg_longest, ps->interrupt_status);
+static void _cmd_ps_print(const proc_status_accum_t* psa, int corenum) {
+    long active = psa->t_active;
+    float busy = (active < 1000000l ? (float)active / 10000.0f : 100.0f); // Divide by 10,000 rather than 1,000,000 for percent
+    char* ts = "us";
+    if (active >= 10000l) {
+        active /= 1000; // Adjust to milliseconds
+        ts = "ms";
+    }
+    int retrieved = psa->retrieved;
+    int msg_id = psa->msg_longest;
+    long msg_t = psa->t_msg_longest;
+    int interrupt_status = psa->interrupt_status;
+    shell_printf("Core %d: Active:% 3.2f%% (%ld%s)\t Msgs:%d\t LongMsgID:%02X (%ldus)\t IntFlags:%08x\n",
+        corenum, busy, active, ts, retrieved, msg_id, msg_t, interrupt_status);
 }
 
 static int _cmd_proc_status(int argc, char** argv, const char* unparsed) {
@@ -198,20 +272,6 @@ static int _cmd_proc_status(int argc, char** argv, const char* unparsed) {
     return (0);
 }
 
-int cmd_get_value(const char* v, int min, int max) {
-    bool success;
-    uint8_t sp = (uint8_t)int_from_str(v, &success);
-    if (!success) {
-        shell_printf("Value error - '%s' is not a number.\n", v);
-        return (INT_MIN);
-    }
-    if (sp < min || sp > max) {
-        shell_puts("Value must be from %d to %d.\n");
-        return (INT_MIN);
-    }
-    return (sp);
-}
-
 
 // Internal functions
 
@@ -228,12 +288,12 @@ static void _cmd_attn_handler(cmt_msg_t* msg) {
     }
 }
 
-void _handle_cc_recall_last(char c) {
+static void _handle_cc_recall_last(char c) {
     // ^K can be typed to put the last command entered on the current input line.
     shell_getline_append(_cmdline_last);
 }
 
-bool _handle_es_recall_last(sescseq_t escseq, const char* escstr) {
+static bool _handle_es_recall_last(sescseq_t escseq, const char* escstr) {
     // Up-Arrow (ESC[A) can be typed to put the last command entered on the current input line.
     shell_getline_append(_cmdline_last);
     return (true);
@@ -244,7 +304,7 @@ bool _handle_es_recall_last(sescseq_t escseq, const char* escstr) {
  *
  * @param c Should be ^R
  */
-void _handle_cc_reinit_terminal(char c) {
+static void _handle_cc_reinit_terminal(char c) {
     // ^R can be typed if the terminal gets messed up or is connected after system has started.
     // This re-initializes the terminal.
     cmt_msg_t msg;
@@ -253,7 +313,7 @@ void _handle_cc_reinit_terminal(char c) {
     postAPPMsg(&msg);
 }
 
-void _notified_of_keypress() {
+static void _notified_of_keypress() {
     // A character is available from the terminal. Getting called clears the registration.
     //
     // See if it's our wakeup char. If so, post a message to kick off our command processing.
@@ -303,10 +363,12 @@ static void _process_line(char* line) {
     bool command_matched = false;
 
     if (user_cmd_len > 0) {
-        const cmd_handler_entry_t** cmds = _command_entries;
         const cmd_handler_entry_t* cmd;
+        cmd_entry_ll_t* cmds = _cmds;
 
-        while (NULL != (cmd = *cmds++)) {
+        while (NULL != cmds) {
+            cmd = cmds->che;
+            cmds = cmds->next;
             int cmd_name_len = strlen(cmd->name);
             if (user_cmd_len <= cmd_name_len && user_cmd_len >= cmd->min_match) {
                 if (0 == strncmp(cmd->name, user_cmd, user_cmd_len)) {
@@ -316,6 +378,10 @@ static void _process_line(char* line) {
                     cmd->cmd(argc, argv, line);
                     break;
                 }
+            }
+            else if (strcmp(user_cmd, cmd->name) < 0) {
+                // We are past the command that would have matched.
+                break;
             }
         }
         if (!command_matched) {
@@ -350,7 +416,7 @@ static void _wakeup() {
 // Public functions
 
 /**
- * This is typically called by the application when wants the user to have the
+ * This is typically called by the application when to wants the user to have the
  * command processor (true) or when it needs to collect and process input (false).
  */
 extern void cmd_activate(bool activate) {
@@ -368,6 +434,20 @@ extern void cmd_activate(bool activate) {
             _cmd_state = CMD_SNOOZING;
         }
     }
+}
+
+int cmd_get_value(const char* v, int min, int max) {
+    bool success;
+    uint8_t sp = (uint8_t)int_from_str(v, &success);
+    if (!success) {
+        shell_printf("Value error - '%s' is not a number.\n", v);
+        return (INT_MIN);
+    }
+    if (sp < min || sp > max) {
+        shell_puts("Value must be from %d to %d.\n");
+        return (INT_MIN);
+    }
+    return (sp);
 }
 
 const cmd_state_t cmd_get_state() {
@@ -388,10 +468,10 @@ void cmd_help_display(const cmd_handler_entry_t* cmd, const cmd_help_display_for
     shell_printf("%.*s", name_min, cmd->name);
     term_text_normal();
     // See if this is an alias for another command...
-    bool alias = (CMD_ALIAS_INDICATOR == *cmd->usage);
+    bool alias = (cmd->usage && (CMD_ALIAS_INDICATOR == *cmd->usage));
     if (!alias) {
         shell_printf("%s %s\n", name_rest, cmd->usage);
-        if (HELP_DISP_LONG == type || HELP_DISP_USAGE == type) {
+        if (cmd->description && (HELP_DISP_LONG == type || HELP_DISP_USAGE == type)) {
             shell_printf("  %s\n", cmd->description);
         }
     }
@@ -402,8 +482,11 @@ void cmd_help_display(const cmd_handler_entry_t* cmd, const cmd_help_display_for
             // Find the aliased entry
             const cmd_handler_entry_t* aliased_cmd = NULL;
             const cmd_handler_entry_t* cmd_chk;
-            const cmd_handler_entry_t** cmds = _command_entries;
-            while (NULL != (cmd_chk = *cmds++)) {
+            cmd_entry_ll_t* cmds = _cmds;
+
+            while (NULL != cmds) {
+                cmd_chk = cmds->che;
+                cmds = cmds->next;
                 if (strcmp(cmd_chk->name, aliased_for_name) == 0) {
                     aliased_cmd = cmd_chk;
                     break;
@@ -421,9 +504,53 @@ void cmd_help_display(const cmd_handler_entry_t* cmd, const cmd_help_display_for
     term_color_bg(tc.bg);
 }
 
+int cmd_register(const cmd_handler_entry_t* cmd) {
+    // Assure it's not null
+    int retval = -2; // Value for null cmd
+    if (cmd) {
+        cmd_entry_ll_t** entry = &_cmds;
+        while (*entry) {
+            const cmd_handler_entry_t* current = (*entry)->che;
 
-void cmd_module_init() {
+            // Compare the command names
+            int cmp = strcmp(cmd->name, current->name);
+            if (cmp == 0) {
+                // This command is already registered.
+                return (-1);
+            }
+            if (cmp < 0) {
+                // Command name is less than the current entry. Insert it here.
+                break;
+            }
+            entry = &(*entry)->next;
+        }
+        // entry is pointed to where the cmd should be inserted.
+        // Get memory for an entry
+        cmd_entry_ll_t* cell = (cmd_entry_ll_t*)malloc(sizeof(cmd_entry_ll_t));
+        if (!cell) {
+            // malloc failed
+            board_panic("!!! cmd_register: malloc failed with 'sizeof(cmd_entry_ll_t) for CMD: %s !!!", cmd->name);
+        }
+        cell->next = *entry;
+        cell->che = cmd;
+        *entry = cell;
+        retval = 0;
+    }
+    return (retval);
+}
+
+
+void cmd_minit() {
     _cmd_state = CMD_SNOOZING;
+    //
+    // Register our commands.
+    cmd_register(&_cmd_proc_status_entry);      // .ps - Display Process Status
+    cmd_register(&_cmd_dec_entry);
+    cmd_register(&_cmd_cls_entry);              // Clear Screen
+    cmd_register(&_cmd_keys_entry);
+    cmd_register(&_cmd_help_entry);
+    cmd_register(&_cmd_hex_entry);
+
     // Register the control character handlers.
     shell_register_control_char_handler(CMD_REINIT_TERM_CHAR, _handle_cc_reinit_terminal);
     shell_register_control_char_handler(CMD_RECALL_LAST_CHAR, _handle_cc_recall_last);

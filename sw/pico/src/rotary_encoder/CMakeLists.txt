@@ -10,6 +10,11 @@ target_sources(rotary_encoder INTERFACE
     re_pbsw.c
 )
 
+target_include_directories(rotary_encoder INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/include
+    ${PICO_SDK_PATH}/common/pico_base_headers/include
+)
+
 target_link_libraries(rotary_encoder INTERFACE
     hardware_pio
     pico_stdlib

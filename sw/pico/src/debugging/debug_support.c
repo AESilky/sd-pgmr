@@ -8,8 +8,8 @@
 
 #include "board.h"
 
-#include "cmt/cmt.h"
-#include "util.h"
+#include "cmt.h"
+#include "include/util.h"
 
 #include "tusb.h"
 #include "pico/printf.h"
@@ -24,6 +24,7 @@
 
 volatile uint16_t debugging_flags = 0;
 static bool _debug_mode_enabled = false;
+
 
 
 void debug_init(debug_init_mode_t mode) {
@@ -108,6 +109,7 @@ void debug_printf(const char* format, ...) {
         stdio_flush();
     }
 }
+
 
 /**
  * This is called from the HardFaultHandler with a pointer the Fault stack

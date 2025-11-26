@@ -5,9 +5,9 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#include "../display.h"
-#include "../fonts/font_9_10_h.h"
-#include "../dispops/dispops.h"
+#include "display.h"
+#include "font_9_10_h.h"
+#include "dispops.h"
 #include "oled1106.h"
 
 #include <string.h>
@@ -82,7 +82,7 @@ static void _display_clear() {
     }
 }
 
-static void _oled1106_module_init(bool invert) {
+static void _oled1106_minit(bool invert) {
     // Some of these commands are not strictly necessary as the reset
     // process defaults to some of these but they are all included
     // rather than rely on POR.
@@ -615,9 +615,9 @@ void display_font_test(void) {
 /*
  * This must be called before using the display.
  */
-void display_module_init(bool invert) {
+void display_minit(bool invert) {
     // run through the complete initialization process
-    _oled1106_module_init(invert);
+    _oled1106_minit(invert);
     display_clear(true);
 }
 

@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-#include "cmt/cmt_t.h"
+#include "cmt_t.h"
 
 /**
  * @file multicore.h
@@ -135,7 +135,7 @@ extern void start_core1();
  * @param no_qadd_panic True to avoid a panic if queue add fails. Used during debugging,
  *                      as single-step can cause a buildup of messages.
  */
-extern void multicore_module_init(bool no_qadd_panic);
+extern void multicore_minit(bool no_qadd_panic);
 
 #ifdef __cplusplus
     }

@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD 17)
 # Initialize pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 #set(PICO_PLATFORM "rp2040-arm-s")
-set(PICO_BOARD "pico")
+set(PICO_BOARD pico)  # Regular RP Pico
+#set(PICO_BOARD pico2)  # RP2350 Pico2
+#set(PICO_BOARD kb2040)  # Adafruit RP2040 Kee Boar
 set(PICO_USE_MALLOC_MUTEX 1)
 set(PICO_QUEUE_MAX_LEVEL 1)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -81,45 +83,32 @@ pico_sdk_init()
 
 set(VERSION "1.0")
 set(NAME_BASE "SD_Programmer")
-# Add the required include file paths to the build
-include_directories(
-  ${CMAKE_CURRENT_LIST_DIR}
-  ${PICO_SDK_PATH}/src/common/pico_base_headers/include
-  ${PICO_SDK_PATH}/src/rp2_common/hardware_adc/include
-  ${PICO_SDK_PATH}/src/rp2_common/hardware_dma/include
-  ${PICO_SDK_PATH}/src/rp2_common/hardware_spi/include
-  ${PICO_SDK_PATH}/src/rp2_common/hardware_pio/include
-  ${PICO_SDK_PATH}/src/rp2_common/hardware_pwm/include
-  ${PICO_SDK_PATH}/src/rp2_common/hardware_rtc/include
-  ${PICO_SDK_PATH}/src/rp2_common/pico_multicore/include
-  ${PICO_SDK_PATH}/src/rp2_common/pico_stdio_uart/include
-  ${PICO_SDK_PATH}/src/rp2_common/pico_stdio_usb/include
+
+# Use 'target_include_directories` rather than `include_directories`
+#include_directories(
+#)
+set(PICO_INCLUDES
 )
 
-# Our Modules
-set(OUR_MODULES
+# Include paths for the entire application
+set(APP_INCLUDES
+  ${CMAKE_CURRENT_LIST_DIR}/include
+  ${CMAKE_CURRENT_LIST_DIR}/cmt/include
+  ${CMAKE_CURRENT_LIST_DIR}/debugging/include
+  ${CMAKE_CURRENT_LIST_DIR}/hwrt/include
+  ${CMAKE_CURRENT_LIST_DIR}/picohlp/include
+)
+
+# Our Modules (direct functionality)
+set(CORE_LIBS
   cmt
-  display
+  debugging
+  disp_oled1106_spi
   app
   hwrt
   picoutil
-  prog_device
-  rotary_encoder
 )
-#
-add_subdirectory(cmt)
-add_subdirectory(deviceops)
-add_subdirectory(display)
-add_subdirectory(dskops)
-add_subdirectory(app)
-add_subdirectory(hwrt)
-add_subdirectory(lib)
-add_subdirectory(picohlp)
-add_subdirectory(rotary_encoder)
-add_subdirectory(shell)
-#
-# External libraries
-#add_subdirectory(lib)
+
 #
 # Pico Libraries/Modules
 set(PICO_LIBS
@@ -128,6 +117,7 @@ set(PICO_LIBS
   hardware_dma
   hardware_exception
   hardware_pio
+  hardware_rtc
   hardware_spi
   hardware_timer
   pico_multicore
@@ -141,11 +131,37 @@ set(PICO_LIBS
 set(TL_SRC
 main.c
 board.c
-debug_hw.c
-debug_support.c
 multicore.c
 util.c
 )
+#
+# Build the subdirectories
+#
+add_subdirectory(cmt)
+add_subdirectory(debugging)
+add_subdirectory(hwrt)
+add_subdirectory(picohlp)
+#
+add_subdirectory(app)
+add_subdirectory(deviceops)
+add_subdirectory(display)
+add_subdirectory(dskops)
+add_subdirectory(rotary_encoder)
+
+#
+# Modules that provide the interactive shell and commands
+set(SHELL_LIBS
+  debug_cmd
+  prog_device_cmd
+  shell
+)
+add_subdirectory(shell)
+
+#
+# External libraries
+set(EXT_LIBS
+)
+add_subdirectory(lib)
 
 #
 # Add executable (output) for Debug Mode disabled by default
@@ -155,15 +171,21 @@ add_executable(sdpgmr
 )
 pico_set_program_name(sdpgmr ${NAME_BASE})
 pico_set_program_version(sdpgmr ${VERSION})
-target_compile_definitions(sdpgmr PRIVATE
+target_compile_definitions(sdpgmr PUBLIC
 	DEBUG_MODE=0
 )
-target_include_directories(sdpgmr PRIVATE
-	${CMAKE_CURRENT_LIST_DIR}
+# Add the required include file paths for this module
+target_include_directories(sdpgmr SYSTEM PUBLIC
+  ${PICO_INCLUDES}
+  ${CMAKE_CURRENT_LIST_DIR}
+  ${APP_INCLUDES}
 )
-target_link_libraries(sdpgmr
-  ${OUR_MODULES}
+# Link in the Modules/Libraries for the top-level
+target_link_libraries(sdpgmr PUBLIC
+  ${CORE_LIBS}
+  ${SHELL_LIBS}
   ${PICO_LIBS}
+  ${EXT_LIBS}
 )
 #pico_set_linker_script(sdpgmr ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
 pico_add_extra_outputs(sdpgmr)
@@ -177,15 +199,21 @@ add_executable(sdpgmr_db
 )
 pico_set_program_name(sdpgmr_db "${NAME_BASE}_DB")
 pico_set_program_version(sdpgmr_db ${VERSION})
-target_compile_definitions(sdpgmr_db PRIVATE
+target_compile_definitions(sdpgmr_db PUBLIC
 	DEBUG_MODE=1
 )
-target_include_directories(sdpgmr_db PRIVATE
-	${CMAKE_CURRENT_LIST_DIR}
+# Add the required include file paths for this module
+target_include_directories(sdpgmr_db SYSTEM PUBLIC
+  ${PICO_INCLUDES}
+  ${CMAKE_CURRENT_LIST_DIR}
+  ${APP_INCLUDES}
 )
+# Link in the Modules/Libraries for the top-level
 target_link_libraries(sdpgmr_db
-  ${OUR_MODULES}
+  ${CORE_LIBS}
+  ${SHELL_LIBS}
   ${PICO_LIBS}
+  ${EXT_LIBS}
 )
 #pico_set_linker_script(sdpgmr_db ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
 pico_add_extra_outputs(sdpgmr_db)

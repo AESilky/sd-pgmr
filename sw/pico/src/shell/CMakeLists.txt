@@ -6,18 +6,16 @@ target_sources(shell INTERFACE
 )
 
 add_subdirectory(cmd)
-add_subdirectory(cmds)
 add_subdirectory(term)
 
 target_include_directories(shell INTERFACE
-	${CMAKE_CURRENT_LIST_DIR}
-	cmd
-	term
+	${CMAKE_CURRENT_LIST_DIR}/include
+	${CMAKE_CURRENT_LIST_DIR}/cmd
+	${CMAKE_CURRENT_LIST_DIR}/term
 )
 
 target_link_libraries(shell INTERFACE
     cmd
-    cmds
     term
     pico_stdlib
 )

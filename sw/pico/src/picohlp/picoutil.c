@@ -16,7 +16,7 @@
 
 #include "picoutil.h"
 
-#include "cmt/cmt.h"
+#include "cmt.h"
 
 #include "pico/bootrom.h"
 #include "pico/stdlib.h"

@@ -85,7 +85,7 @@ extern void cmt_return_smdllent(cmt_schmsgdata_ll_ent_t* smllent);
  */
 extern cmt_msg_hdlr_ll_ent_t* cmt_check_mhllent(cmt_msg_hdlr_ll_ent_t* ent, int ref_value1, int ref_value2);
 
-extern void cmt_heap_module_init();
+extern void cmt_heap_minit();
 
 #ifdef __cplusplus
     }

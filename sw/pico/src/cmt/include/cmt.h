@@ -50,7 +50,7 @@ typedef struct _PROC_STATUS_ACCUM_ {
  * @param core The core [0|1]
  * @return msg_id_t The ID of the message
  */
-msg_id_t cmt_curlast_msg(int core);
+extern msg_id_t cmt_curlast_msg(int core);
 
 /**
  * @brief Add (register) a handler for a message.
@@ -299,7 +299,7 @@ extern void message_loop(msg_handler_fn fstart);
  * @brief Initialize the Cooperative Multi-Tasking system.
  * @ingroup cmt
  */
-extern void cmt_module_init();
+extern void cmt_minit();
 
 #ifdef __cplusplus
     }

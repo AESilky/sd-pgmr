@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 #include "cmd_t.h"
-#include "cmt/cmt.h"
+#include "cmt.h"
 
 #include <limits.h>
 
@@ -61,10 +61,22 @@ extern int cmd_get_value(const char* v, int min, int max);
 extern const cmd_state_t cmd_get_state();
 
 /**
+ * @brief Register a command to be available in the shell.
+ * @ingroup ui
+ *
+ * Register a command, using a command handler entry.
+ * @see cmd_handler_entry_t
+ *
+ * @param cmd Pointer to a command handler entry.
+ * @return 0 Command was registered. -1 Command name exists.
+ */
+extern int cmd_register(const cmd_handler_entry_t* cmd);
+
+/**
  * @brief Initialize the command processor.
  * @ingroup ui
  */
-extern void cmd_module_init(void);
+extern void cmd_minit(void);
 
 #ifdef __cplusplus
     }

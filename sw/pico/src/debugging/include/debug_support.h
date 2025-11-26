@@ -100,6 +100,9 @@ extern void nondb_gpio_init();
 /** @brief Printf like function that is controlled by the debug enabled flag */
 extern void debug_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
 
+
+extern void dbcmds_init();
+
 #ifdef __cplusplus
 }
 #endif

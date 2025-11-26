@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-#include "cmt/cmt.h"
-#include "term/term.h"
+#include "cmt.h"
+#include "../term/term.h"
 
 #define shell_NAME_VERSION "AES v0.1"
 
@@ -87,7 +87,8 @@ typedef void (*shell_control_char_handler)(char c);
  * @brief ENUM of the supported ESC sequences.
  */
 typedef enum SHELL_ESC_SEQUENCE_ {
-    SES_KEY_ARROW_UP = 0,
+    SES_KEY_ARROW_LF = 0,
+    SES_KEY_ARROW_UP = 1,
 } sescseq_t;
 #define _SEH_NUM (SES_KEY_ARROW_UP + 1)
 
@@ -206,7 +207,7 @@ extern bool shell_handle_control_character(char c);
  *
  * @return Number of characters printed.
  */
-int shell_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
+extern int shell_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
 
 /**
  * @brief Version of `printf` that prints in red and adds a leading newline if interrupting
@@ -215,7 +216,7 @@ int shell_printf(const char* format, ...) __attribute__((format(_printf_, 1, 2))
  *
  * @return Number of characters printed.
  */
-int shell_printferr(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
+extern int shell_printferr(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
 
 /**
  * @brief Print the code-text string. This is 0-n spaces and a character.
@@ -300,7 +301,7 @@ extern void shell_use_cmd_color();
 
 
 
-extern void shell_module_init();
+extern void shell_minit();
 
 #ifdef __cplusplus
     }

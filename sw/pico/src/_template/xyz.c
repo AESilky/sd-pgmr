@@ -77,7 +77,7 @@ static void _handle_housekeeping(cmt_msg_t* msg) {
 // ====================================================================
 
 
-void xyz_module_init() {
+void xyz_minit() {
     if (_initialized) {
         board_panic("!!! xyz_module_init: Called more than once !!!");
     }

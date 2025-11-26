@@ -20,11 +20,6 @@ extern "C" {
 
 
 /**
- * @brief Increment the address counters.
- */
-extern void pdo_addr_inc();
-
-/**
  * @brief Set the device data location address.
  *
  * This stores the address into the Device Address Latches/Counters. The devices use/require:
@@ -90,7 +85,7 @@ static inline bool pdo_pwr_is_on() {
  * @brief Initialize the module. Must be called once/only-once before module use.
  *
  */
-extern void pdo_module_init();
+extern void pdo_minit();
 
 #ifdef __cplusplus
 }

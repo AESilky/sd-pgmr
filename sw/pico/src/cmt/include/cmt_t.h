@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#include "hwrt/hwrt_t.h"
+#include "hwrt_t.h"
 
 #include <stdbool.h>
 #include <stddef.h>

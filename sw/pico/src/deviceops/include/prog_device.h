@@ -18,7 +18,7 @@ extern "C" {
  * @brief Initialize the module. Must be called once/only-once before module use.
  *
  */
-extern void pd_module_init();
+extern void pd_minit();
 
 #ifdef __cplusplus
 }

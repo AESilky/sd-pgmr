@@ -17,7 +17,7 @@ specific language governing permissions and limitations under the License.
 #include <stdbool.h>
 //
 // Local project includes
-#include "picohlp/picoutil.h"
+#include "picoutil.h"
 //
 // Pico includes
 #include "pico.h"

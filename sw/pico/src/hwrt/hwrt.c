@@ -12,14 +12,15 @@
 
 #include "board.h"
 #include "debug_support.h"
-#include "picohlp/picoutil.h"
+#include "picoutil.h"
 
-#include "cmt/cmt.h"
+#include "cmt.h"
+#include "app.h"
+#include "include/util.h"
+
 #include "dskops/dskops.h"
-#include "app/app.h"
-#include "rotary_encoder/re_pbsw.h"
-#include "rotary_encoder/rotary_encoder.h"
-#include "util.h"
+#include "rotary_encoder/include/re_pbsw.h"
+#include "rotary_encoder/include/rotary_encoder.h"
 
 #include "hardware/gpio.h"
 #include "pico/stdlib.h"
@@ -80,8 +81,8 @@ static void _handle_apps_started(cmt_msg_t* msg) {
 
     // Initialize other modules that the RT oversees.
     //
-    re_pbsw_module_init();  // Rotary Encoder Push-Button Switch module
-    re_module_init();       // Rotary Encoder (knob) module
+    re_pbsw_minit();  // Rotary Encoder Push-Button Switch module
+    re_minit();       // Rotary Encoder (knob) module
     gpio_set_irq_enabled_with_callback(IRQ_ROTARY_TURN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
     gpio_set_irq_enabled(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(IRQ_CMD_ATTN_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
@@ -241,7 +242,7 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
 // Initialization and Startup methods
 // ====================================================================
 
-static void _hwrt_module_init() {
+static void _hwrt_minit() {
     cmt_msg_hdlr_add(MSG_APPS_STARTED, _handle_apps_started);
     cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_hwrt_housekeeping);
     cmt_msg_hdlr_add(MSG_HWRT_TEST, _handle_hwrt_test);
@@ -293,9 +294,9 @@ void core1_main() {
  */
 static void _hwrt_started(cmt_msg_t* msg) {
     // Initialize now that the message loop is running.
-    _hwrt_module_init();
+    _hwrt_minit();
 
-    dskops_module_init();   // Make the Disk Operations available
+    dskops_minit();   // Make the Disk Operations available
 
     //
     // Done with the Hardware Runtime Startup - Let the DSC know.

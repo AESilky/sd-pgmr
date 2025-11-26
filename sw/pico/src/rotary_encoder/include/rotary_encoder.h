@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-#include <pico/types.h>
+#include "pico/types.h"
 
 /**
  * @brief Current position count of the rotary encoder.
@@ -56,7 +56,7 @@ extern void re_turn_irq_handler(uint gpio, uint32_t events);
  * @brief Initialize the rotary encoder decode module.
  * @ingroup ui
  */
-extern void re_module_init();
+extern void re_minit();
 
 #ifdef __cplusplus
     }

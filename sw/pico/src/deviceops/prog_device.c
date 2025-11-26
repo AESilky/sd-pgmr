@@ -21,8 +21,8 @@
 #include "pdops.h"
 
 #include "board.h"
-#include "cmt/cmt_t.h"
-#include "util.h"
+#include "cmt_t.h"
+#include "include/util.h"
 
 #include "pico/types.h"
 
@@ -97,10 +97,10 @@ void _clr_device_buf() {
 // Initialization/Start-Up Methods
 // ====================================================================
 
-void pd_module_init() {
+void pd_minit() {
     if (_initialized) {
         board_panic("!!! pd_module_init: Called more than once !!!");
     }
     _clr_device_buf();
-    pdo_module_init();
+    pdo_minit();
 }

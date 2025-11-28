@@ -26,10 +26,6 @@
 #include "deviceops/include/prog_device.h"
 #include "deviceops/include/pdops.h"
 
-#include "shell/cmd/cmd.h"
-#include "debugging/cmd/cmds.h"
-#include "deviceops/cmd/cmds.h"
-
 #include <stdio.h>
 
 // ############################################################################
@@ -77,6 +73,12 @@ static void _handle_switch_action(cmt_msg_t* msg);
  */
 static void _clear_and_enable_input(void* data) {
     display_clear(Paint);
+    // Initialize the shell
+    shell_minit();
+    //
+    // Start the shell
+    shell_start();
+
     //
     // Enable the user input controls...
     // ZZZ
@@ -112,7 +114,7 @@ static void _clear_and_enable_input(void* data) {
     do {
         fr = f_findnext(&dir, &finfo);
         if (fr != FR_OK) {
-            error_printf("Cannon read dir (nf): '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
+            error_printf("Cannot read dir (nf): '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
             return;
         }
         if (finfo.fattrib & AM_DIR) {
@@ -121,25 +123,19 @@ static void _clear_and_enable_input(void* data) {
         display_string(disprow++, 0, finfo.fname, false, false, Paint);
     }
     while (disprow < display_info().rows);
-
-
-    // Initialize the shell
-    shell_minit();
-    //
-    // Built the shell
-    shell_build();
-    term_text_normal();
-    // Activate the command processor
-    cmd_activate(true);
 }
 
 static void _display_proc_status(void* data) {
     // Output the current state
-    for (int i = 0; i < 2; i++) {
-        proc_status_accum_t psa;
-        cmt_proc_status_sec(&psa, i);
-        // Display the proc status...
-        _show_psa(&psa, i);
+    if (debug_mode_enabled()) {
+        cmt_sm_counts_t smwc = scheduled_msgs_waiting();
+        for (int i = 0; i < 2; i++) {
+            proc_status_accum_t psa;
+            cmt_proc_status_sec(&psa, i);
+            // Display the proc status...
+            _show_psa(&psa, i);
+        }
+        debug_printf("Scheduled messages: %d\n", smwc.total);
     }
     // Do 'other' status
     // Output status every 16 seconds
@@ -193,13 +189,18 @@ static void _handle_switch_action(cmt_msg_t* msg) {
 //
 static void _show_psa(proc_status_accum_t* psa, int corenum) {
     long active = psa->t_active;
+    float busy = (active < 1000000l ? (float)active / 10000.0f : 100.0f); // Divide by 10,000 rather than 1,000,000 for percent
+    char* ts = "us";
+    if (active >= 10000l) {
+        active /= 1000; // Adjust to milliseconds
+        ts = "ms";
+    }
     int retrieved = psa->retrieved;
     int msg_id = psa->msg_longest;
     long msg_t = psa->t_msg_longest;
     int interrupt_status = psa->interrupt_status;
-    float busy = (float)active / 10000.0f; // Divide by 10,000 rather than 1,000,000 for percent
-    float core_temp = 0.0f; // onboard_temp_c();
-    debug_printf("PSA %d: Active: % 3.2f%%\t At:%ld\tMR:%d\t Temp: %3.1f\t Msg: %03X Msgt: %ld\t Int:%08x\n", corenum, busy, active, retrieved, core_temp, msg_id, msg_t, interrupt_status);
+    debug_printf("Core %d: Active:% 3.2f%% (%ld%s)\t Msgs:%d\t LongMsgID:%02X (%ldus)\t IntFlags:%08x\n",
+        corenum, busy, active, ts, retrieved, msg_id, msg_t, interrupt_status);
 }
 
 
@@ -221,12 +222,14 @@ static void _minit(void) {
     }
     _initialized = true;
 
+    // Programmable Device (Flash) module
+    pd_minit();
+
     // Add our message handlers
     cmt_msg_hdlr_add(MSG_ROTARY_CHG, _handle_rotary_change);
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
     cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_app_housekeeping);
 
-    pd_minit();       // Programmable Device (Flash) module
 
     // Initialize the display
     display_minit(true); // Initialize, and invert the display (as it is mounted upside down)

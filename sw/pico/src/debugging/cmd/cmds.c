@@ -9,7 +9,7 @@
 
 #include "board.h"
 
-#include "shell/cmd/cmd.h"
+#include "shell/cmd/cmd_t.h"
 #include "shell/include/shell.h"
 #include "include/util.h"
 
@@ -44,6 +44,6 @@ static int _dbcmd(int argc, char** argv, const char* unparsed) {
 }
 
 
-void dbcmds_init() {
+void dbcmds_minit() {
     cmd_register(&cmd_debug_entry);
 }

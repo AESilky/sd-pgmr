@@ -9,7 +9,7 @@
 #include "board.h"
 
 #include "cmt.h"
-#include "include/util.h"
+#include "util.h"
 
 #include "tusb.h"
 #include "pico/printf.h"

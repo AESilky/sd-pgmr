@@ -33,6 +33,8 @@ typedef struct CMD_ENTRY_LL_ {
 static char _cmdline_last[shell_GETLINE_MAX_LEN_];
 // Buffer to copy the input line into to be parsed.
 static char _cmdline_parsed[shell_GETLINE_MAX_LEN_];
+// Last executed command exit value
+static int _exit_val;
 
 // Command processor declarations
 static int _cmd_cls(int argc, char** argv, const char* unparsed);
@@ -345,6 +347,7 @@ static void _hook_keypress() {
     term_register_notify_on_input(_notified_of_keypress);
 }
 
+//TryCatchInit;
 static void _process_line(char* line) {
     char* argv[CMD_LINE_MAX_ARGS];
     memset(argv, 0, sizeof(argv));
@@ -365,6 +368,7 @@ static void _process_line(char* line) {
     if (user_cmd_len > 0) {
         const cmd_handler_entry_t* cmd;
         cmd_entry_ll_t* cmds = _cmds;
+        int chrv = 0;
 
         while (NULL != cmds) {
             cmd = cmds->che;
@@ -375,13 +379,35 @@ static void _process_line(char* line) {
                     // This command matches
                     command_matched = true;
                     _cmd_state = CMD_EXECUTING_COMMAND;
-                    cmd->cmd(argc, argv, line);
+                    // Use a Try/Catch to allow command handlers to Throw an exception
+                    // if they encounter an error, rather than having to un-nest a return
+                    // value.
+                    //
+//                    Try {
+                        chrv = cmd->cmd(argc, argv, line);
+//                    }
+                    // Catch( CMD_ARG_NUMBER_EXCEPT ) {
+                    //     chrv = CMD_ARG_NUMBER_EXCEPT;
+                    // }
+                    // Catch( CMD_ARG_VALUE_EXCEPT ) {
+                    //     chrv = CMD_ARG_VALUE_EXCEPT;
+                    // }
+                    // Catch( CMD_ENV_EXCEPT ) {
+                    //     chrv = CMD_ENV_EXCEPT;
+                    // }
+                    // Catch( CMD_GEN_EXCEPT ) {
+                    //     chrv = CMD_GEN_EXCEPT;
+                    // }
+                    // Catch( EXCEPTION_GENERAL ) {
+                    //     chrv = EXCEPTION_GENERAL;
+                    // }
+                    // Finally
+                    // {
+                        _exit_val = chrv;
+                    // }
+                    // Etry;
                     break;
                 }
-            }
-            else if (strcmp(user_cmd, cmd->name) < 0) {
-                // We are past the command that would have matched.
-                break;
             }
         }
         if (!command_matched) {
@@ -434,6 +460,10 @@ extern void cmd_activate(bool activate) {
             _cmd_state = CMD_SNOOZING;
         }
     }
+}
+
+int cmd_exit_value() {
+    return _exit_val;
 }
 
 int cmd_get_value(const char* v, int min, int max) {

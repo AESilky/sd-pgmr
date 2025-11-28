@@ -65,11 +65,13 @@ extern void pdo_data_set(uint8_t data);
 /**
  * @brief Turn the Programmable-Device Power ON/OFF.
  *
+ * When power is turned off, the PWR- signal is set LOW to avoid back-powering the
+ * power-controlled portion of the circuit. When it is turned on, the PWR- signal
+ * is set HIGH to avoid driving the PD data bus when not intended.
+ *
  * @param on True:ON, False:OFF
  */
-static inline void pdo_pwr_on(bool on) {
-    gpio_put(OP_DEVICE_PWR, on);
-}
+extern void pdo_pwr_on(bool on);
 
 /**
  * @brief Get the state of the Programmable-Device Power.

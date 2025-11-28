@@ -11,6 +11,19 @@
 extern "C" {
 #endif
 
+/** Support for try/throw/catch so commands can throw an exception rather than
+ *  trying to propagate an error code all the way back out of some nested execution
+ *  level.
+ *
+ *  Commands can, for example, `Throw( CMD_ARG_VALUE_EXCEPT )`
+ *  There is a complete example in the header file.
+ */
+#include "try_throw_catch.h"
+#define CMD_ARG_NUMBER_EXCEPT (1)
+#define CMD_ARG_VALUE_EXCEPT (2)
+#define CMD_ENV_EXCEPT (3)
+#define CMD_GEN_EXCEPT (4)
+
 /**
  * @brief If `usage` begins with CTRL-A ('\001') it indicate that this command
  *        is an alias for another. The rest of `usage` is the aliased command name.
@@ -71,7 +84,26 @@ typedef struct _CMD_HANDLER_ENTRY {
  * @param cmd The command entry for the command to display help for.
  * @param type The type of help to display.
  */
-void cmd_help_display(const cmd_handler_entry_t* cmd, const cmd_help_display_format_t type);
+extern void cmd_help_display(const cmd_handler_entry_t* cmd, const cmd_help_display_format_t type);
+
+/**
+ * @brief The exit value of the last command executed.
+ *
+ * @return int Value. Typically, 0 means OK, but it is up to the command.
+ */
+extern int cmd_exit_value();
+
+/**
+ * @brief Register a command to be available in the shell.
+ * @ingroup ui
+ *
+ * Register a command, using a command handler entry.
+ * @see cmd_handler_entry_t
+ *
+ * @param cmd Pointer to a command handler entry.
+ * @return 0 Command was registered. -1 Command name exists.
+ */
+extern int cmd_register(const cmd_handler_entry_t* cmd);
 
 
 #ifdef __cplusplus

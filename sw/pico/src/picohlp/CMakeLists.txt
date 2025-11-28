@@ -32,3 +32,7 @@ target_sources(hardware_rtc INTERFACE
   vrtc.c
 )
 endif()
+
+add_subdirectory(
+  cmd
+)

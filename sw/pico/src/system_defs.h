@@ -68,7 +68,7 @@ extern "C" {
 #define OP8_ADDRH_LD             4              // Addr Latch HIGH Load
 #define OP8_DEV_SEL              5              // Device (FlashROM) Select
 #define OP8_NOP                  6              // No-Operation
-#define OP8_NOP2                 7              // Address Advance Clock
+#define OP8_NOP2                 7              // No-Operation
 
 // Operations controlled directly by a GPIO
 //

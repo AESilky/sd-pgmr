@@ -1,7 +1,7 @@
 /**
  * Commends: Debug.
  *
- * Shell command to display, set, reset the debug flag.
+ * Shell commands for the Programmable Device.
  *
  * Copyright 2023-25 AESilky
  * SPDX-License-Identifier: MIT License
@@ -14,6 +14,7 @@
 #include "include/util.h"
 
 #include "shell/include/shell.h"
+#include "shell/cmd/cmd_t.h"
 
 #include <ctype.h>
 #include <stdbool.h>
@@ -36,19 +37,60 @@ static bool _repeat;
 static rptop_t _rptop;
 static bool _rptdlyip; // True if a repeat delay has been scheduled and not received.
 
-static int _get_addr(char* addrstr) {
-    bool success;
-    uint32_t addr = (uint32_t)uint_from_hexstr(addrstr, &success);
-    if (!success) {
-        shell_printf("Value error - '%s' is not a valid hex address.\n", addrstr);
-        return (-1);
+
+const cmd_handler_entry_t cmds_devaddr_entry;
+const cmd_handler_entry_t cmds_devaddr_n_entry;
+const cmd_handler_entry_t cmds_devdump_entry;
+const cmd_handler_entry_t cmds_devpwr_entry;
+const cmd_handler_entry_t cmds_devrd_entry;
+const cmd_handler_entry_t cmds_devrd_n_entry;
+const cmd_handler_entry_t cmds_devwr_entry;
+const cmd_handler_entry_t cmds_devwr_n_entry;
+
+
+/**
+ * @brief Get a 16-bit value from a string or "." to keep the current value.
+ *
+ * This loads `v` with the value from `str` if it is a valid hex value from 0 to FFFF.
+ * It leaves the `v` unchanged if the `str` is ".".
+ *
+ * If the str isn't valid or the value is greater than FFFF a message is printed to the shell.
+ *
+ * @param addr Pointer to an unsigned word (16-bit)
+ * @param str String to parse for the value
+ * @param err_type String with a word(s) describing the type of expected value (used in the error message)
+ * @return true Good conversion
+ * @return false Invalid hex string or value larger than FFFF
+ */
+static bool _get_v16(uint16_t* addr, const char* str, const char* err_type) {
+    bool valid;
+    uint32_t addrv;
+    if (strcmp(".", str) != 0) {
+        addrv = uint_from_hexstr(str, &valid);
+        if (!valid) {
+            shell_printferr("Value error - '%s' is not valid HEX.\n", str);
+            return (false);
+        }
+        if (addrv > 0xFFFF) {
+            shell_printferr("Value error - '%s' is not a valid %s. Must be 0-FFFF.\n", str, err_type);
+            return (false);
+        }
+        *addr = addrv;
+    }
+    return (true);
+}
+
+static bool _get_addr(char* addrstr) {
+    uint16_t addr = _addr;
+    if (!_get_v16(&addr, addrstr, "hex address")) {
+        return (false);
     }
     if (addr != _addr) {
         // The address is different, set the address on the device.
         _addr = addr;
         pdo_addr_set(_addr);
     }
-    return (0);
+    return (true);
 }
 
 static void _repeat_handler(cmt_msg_t *msg) {
@@ -96,7 +138,7 @@ static int _exec_addr(int argc, char** argv, const char* unparsed) {
         else {
             // Get an address and set it.
             char* addrstr = argv[1];
-            if (_get_addr(addrstr) < 0) {
+            if (!_get_addr(addrstr)) {
                 // _get_addr tells the user the address wasn't valid - just exit.
                 return (-1);
             }
@@ -118,7 +160,7 @@ static int _exec_addr(int argc, char** argv, const char* unparsed) {
     return (retval);
 }
 
-static int _exec_naddr(int argc, char** argv, const char* unparsed) {
+static int _exec_addrn(int argc, char** argv, const char* unparsed) {
     int retval = 0;
     if (argc > 1) {
         // We don't take any arguments.
@@ -129,6 +171,80 @@ static int _exec_naddr(int argc, char** argv, const char* unparsed) {
     pdo_addr_set(_addr);
     // Display the address
     shell_printf("%6.6X\n", _addr);
+
+    return (retval);
+}
+
+static int _exec_dump(int argc, char** argv, const char* unparsed) {
+    static uint16_t _dump_len = 256; // Display 256 bytes unless told otherwise
+
+    int retval = 0;
+    if (argc > 3) {
+        // We take 0, 1, or 2 arguments.
+        cmd_help_display(&cmds_devdump_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    argv++; // Skip the command name
+    argc--;
+    if (argc > 0) {
+        uint16_t saddr = _addr;
+        uint16_t len = _dump_len;
+        // First Arg is START (HEX or '.').
+        bool valid = _get_v16(&saddr, *argv, "hex address");
+        if (!valid) {
+            return (-1);
+        }
+        argc--;
+        argv++;
+        if (argc > 0) {
+            valid = _get_v16(&len, *argv, "length");
+            if (!valid) {
+                return (-1);
+            }
+            argc--;
+            argv++;
+        }
+        if (saddr != _addr) {
+            // The address is different, set the address on the device.
+            _addr = saddr;
+            pdo_addr_set(_addr);
+        }
+        _dump_len = len;
+    }
+    int len = 0;
+    uint8_t v[16];
+    while (len < _dump_len) {
+        // Read and display rows of up to 16 bytes
+        //
+        // display the address
+        shell_printf("%04X  ", _addr);
+        int i, j;
+        for (i = 0; i < 16; i++) {
+            j = i;
+            // Read the data from the device
+            v[i] = pdo_data_get();
+            // Print the HEX of the value (ASCII comes later)
+            shell_printf("%02X ", v[i]);
+            len++;
+            _addr++;
+            pdo_addr_set(_addr);
+            if (len == _dump_len) {
+                i++;
+                break; // We've reached the number of bytes requested.
+            }
+        }
+        // Fill any gap out to 16 values
+        for (;i < 16; i++) {
+            shell_printf("   ");
+        }
+        // Display the ASCII
+        shell_printf("  ");
+        for (i = 0; i <= j; i++) {
+            unsigned char c = (v[i] < 0x20 || v[i] > 0x7F ? '\200' : v[i]);
+            shell_printf("%c ", c);
+        }
+        shell_printf("\n");
+    };
 
     return (retval);
 }
@@ -167,7 +283,7 @@ static int _exec_rd(int argc, char** argv, const char* unparsed) {
         else {
             // Get an address.
             char* addrstr = argv[1];
-            if (_get_addr(addrstr) < 0) {
+            if (!_get_addr(addrstr)) {
                 // _get_addr tells the user the address wasn't valid - just exit.
                 return (-1);
             }
@@ -225,7 +341,7 @@ static int _exec_wr(int argc, char** argv, const char* unparsed) {
         argc--;
         char* addrstr = argv[arg++];
         // Get an address.
-        if (_get_addr(addrstr) < 0) {
+        if (!_get_addr(addrstr)) {
             // _get_addr tells the user the address wasn't valid - just exit.
             return (-1);
         }
@@ -287,55 +403,75 @@ static int _exec_nwr(int argc, char** argv, const char* unparsed) {
 const cmd_handler_entry_t cmds_devaddr_entry = {
     _exec_addr,
     4,
-    "addr",
+    "pdaddr",
     "[addr(hex)|R]"
     "Show the address being used and optionally set it. Repeat setting it (for troubleshooting).",
 };
 
 const cmd_handler_entry_t cmds_devaddr_n_entry = {
-    _exec_naddr,
-    2,
-    "naddr",
+    _exec_addrn,
+    4,
+    "pdan",
     NULL,
     "Advance the address.",
 };
 
+const cmd_handler_entry_t cmds_devdump_entry = {
+    _exec_dump,
+    4,
+    "pddump",
+    "[[addr(hex)|.] len(dec)]",
+    "Dump device data. Optionally specify start address and length.",
+};
+
 const cmd_handler_entry_t cmds_devpwr_entry = {
     _exec_dpwr,
-    2,
-    "dpwr",
+    3,
+    "pdpwr",
     "[ON|OFF]",
     "Turn device power ON/OFF.",
 };
 
 const cmd_handler_entry_t cmds_devrd_entry = {
     _exec_rd,
-    2,
-    "rd",
+    4,
+    "pdrd",
     "[addr(hex)|R]",
     "Read device data from the current or specified address, or start a repeated read.\nUsing this command without 'R' stops any repeated operation.",
 };
 
 const cmd_handler_entry_t cmds_devrd_n_entry = {
     _exec_nrd,
-    2,
-    "nrd",
+    4,
+    "pdrn",
     NULL,
     "Advance the address and read device data.",
 };
 
 const cmd_handler_entry_t cmds_devwr_entry = {
     _exec_wr,
-    2,
-    "wr",
+    4,
+    "pdwr",
     "{[addr(hex)] data(hex)}|R",
     "Write device data to the current or specified address, or start a repeated write.\nUsing this command without 'R' stops any repeated operation.",
 };
 
 const cmd_handler_entry_t cmds_devwr_n_entry = {
     _exec_nwr,
-    2,
-    "nwr",
+    4,
+    "pdwn",
     "data(hex)",
     "Advance the address and write device data.",
 };
+
+
+void pdcmds_minit(void) {
+    cmd_register(&cmds_devaddr_entry);
+    cmd_register(&cmds_devaddr_n_entry);
+    cmd_register(&cmds_devdump_entry);
+    cmd_register(&cmds_devpwr_entry);
+    cmd_register(&cmds_devrd_entry);
+    cmd_register(&cmds_devrd_n_entry);
+    cmd_register(&cmds_devwr_entry);
+    cmd_register(&cmds_devwr_n_entry);
+}

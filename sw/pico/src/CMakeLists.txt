@@ -94,6 +94,7 @@ set(PICO_INCLUDES
 set(APP_INCLUDES
   ${CMAKE_CURRENT_LIST_DIR}/include
   ${CMAKE_CURRENT_LIST_DIR}/cmt/include
+  ${CMAKE_CURRENT_LIST_DIR}/dbus/include
   ${CMAKE_CURRENT_LIST_DIR}/debugging/include
   ${CMAKE_CURRENT_LIST_DIR}/hwrt/include
   ${CMAKE_CURRENT_LIST_DIR}/picohlp/include
@@ -102,6 +103,7 @@ set(APP_INCLUDES
 # Our Modules (direct functionality)
 set(CORE_LIBS
   cmt
+  dbus
   debugging
   disp_oled1106_spi
   app
@@ -138,6 +140,7 @@ util.c
 # Build the subdirectories
 #
 add_subdirectory(cmt)
+add_subdirectory(dbus)
 add_subdirectory(debugging)
 add_subdirectory(hwrt)
 add_subdirectory(picohlp)
@@ -151,9 +154,9 @@ add_subdirectory(rotary_encoder)
 #
 # Modules that provide the interactive shell and commands
 set(SHELL_LIBS
-  debug_cmd
-  prog_device_cmd
   shell
+  # Use the following if not wanting the Shell
+  #shell_stub
 )
 add_subdirectory(shell)
 

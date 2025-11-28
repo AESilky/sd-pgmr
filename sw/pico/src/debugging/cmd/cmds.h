@@ -10,7 +10,8 @@
 extern "C" {
 #endif
 
-extern void debug_cmd_minit();
+
+extern void dbcmds_minit();
 
 #ifdef __cplusplus
 }

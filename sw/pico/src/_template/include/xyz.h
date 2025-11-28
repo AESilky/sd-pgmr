@@ -7,8 +7,8 @@
  * SPDX-License-Identifier: MIT License
  *
 */
-#ifndef XYZ_H_
-#define XYZ_H_
+#ifndef XYZ_H_ <-- REPLACE THIS
+#define XYZ_H_ <-- REPLACE THIS
 #ifdef __cplusplus
 extern "C" {
 #endif

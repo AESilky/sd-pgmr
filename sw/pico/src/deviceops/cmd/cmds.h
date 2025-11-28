@@ -8,21 +8,12 @@
  *
 */
 #ifndef CMDS_DEVRDWR_H_
-#define XYZ_H_
+#define CMDS_DEVRDWR_H_
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-#include "../cmd/cmd_t.h"
-
-extern const cmd_handler_entry_t cmds_devaddr_entry;
-extern const cmd_handler_entry_t cmds_devaddr_n_entry;
-extern const cmd_handler_entry_t cmds_devpwr_entry;
-extern const cmd_handler_entry_t cmds_devrd_entry;
-extern const cmd_handler_entry_t cmds_devrd_n_entry;
-extern const cmd_handler_entry_t cmds_devwr_entry;
-extern const cmd_handler_entry_t cmds_devwr_n_entry;
+extern void pdcmds_minit(void);
 
 #ifdef __cplusplus
 }

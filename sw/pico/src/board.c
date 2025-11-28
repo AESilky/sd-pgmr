@@ -20,6 +20,7 @@
 
 #include "board.h"
 
+#include "dbus.h"
 #include "debug_support.h"
 #include "util.h"
 
@@ -37,6 +38,7 @@
 // /// Board Level Data ///
 // ////////////////////////
 //
+const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 
 volatile bool _diagout_disabled;
 
@@ -45,10 +47,6 @@ char shared_print_buf[SHARED_PRINT_BUF_SIZE];
 
 /** @brief `bop_mutex` is used for performing Board Op control signal changes. */
 auto_init_mutex(bop_mutex);
-
-bool _databus_is_out() {
-    return gpio_get_dir(DATA0); // We check DATA-0. All DATA bits direction are set as one.
-}
 
 /**
  * @brief Initialize the board
@@ -64,7 +62,6 @@ bool _databus_is_out() {
 int board_init() {
     int retval = 0;
 
-    const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     gpio_init(LED_PIN);
     gpio_put(LED_PIN, 1);
     gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -111,50 +108,12 @@ int board_init() {
     gpio_set_function(OP_DEVICE_PWR, GPIO_FUNC_SIO);
     gpio_put(OP_DEVICE_PWR, 0);
     gpio_set_dir(OP_DEVICE_PWR, GPIO_OUT);
-    gpio_set_drive_strength(OP_DEVICE_PWR, GPIO_DRIVE_STRENGTH_12MA);
-    //
-    // DP_DATA_RD is initialized in the debug init (debug_hw.c)
-    //
-    // gpio_set_function(OP_DATA_RD, GPIO_FUNC_SIO);
-    // gpio_put(OP_DATA_RD, 1);
-    // gpio_set_dir(OP_DATA_RD, GPIO_OUT);
-    // gpio_set_drive_strength(OP_DATA_RD, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(OP_DATA_WR, GPIO_FUNC_SIO);
-    gpio_set_dir(OP_DATA_WR, GPIO_OUT);
-    gpio_put(OP_DATA_WR, 1);
-    gpio_set_drive_strength(OP_DATA_WR, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(OP_DATA_LATCH, GPIO_FUNC_SIO);
-    gpio_put(OP_DATA_LATCH, 0);
-    gpio_set_dir(OP_DATA_LATCH, GPIO_OUT);
-    gpio_set_drive_strength(OP_DATA_LATCH, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_drive_strength(OP_DEVICE_PWR, GPIO_DRIVE_STRENGTH_4MA);
 
     // GPIO Inputs
-
-    //  Data Bus (Initially set to input)
-    gpio_set_function(DATA0, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA0, GPIO_IN);
-    gpio_set_drive_strength(DATA0, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA1, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA1, GPIO_IN);
-    gpio_set_drive_strength(DATA1, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA2, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA2, GPIO_IN);
-    gpio_set_drive_strength(DATA2, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA3, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA3, GPIO_IN);
-    gpio_set_drive_strength(DATA3, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA4, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA4, GPIO_IN);
-    gpio_set_drive_strength(DATA4, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA5, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA5, GPIO_IN);
-    gpio_set_drive_strength(DATA5, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA6, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA6, GPIO_IN);
-    gpio_set_drive_strength(DATA6, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(DATA7, GPIO_FUNC_SIO);
-    gpio_set_dir(DATA7, GPIO_IN);
-    gpio_set_drive_strength(DATA7, GPIO_DRIVE_STRENGTH_2MA);
+    //  ATTN Switch is setup in the Debug Ops
+    gpio_set_function(RPADC2, GPIO_IN);
+    gpio_set_pulls(RPADC2, false, false);
 
     //    Rotary Encoder Input
     gpio_set_function(ROTARY_A_GPIO, GPIO_FUNC_SIO);
@@ -196,6 +155,9 @@ int board_init() {
 
     // The PWM is used for a recurring interrupt in CMT. It will initialize it.
 
+    // Initialize the Data Bus
+    dbus_minit();
+    
     return(retval);
 }
 
@@ -241,25 +203,6 @@ bool diagout_is_enabled() {
 
 bool rotary_switch_pressed() {
     return (gpio_get(ROTARY_SW_GPIO) == SWITCH_PRESSED);
-}
-
-extern uint8_t pdatabus_rd() {
-    if (_databus_is_out()) {
-        pdatabus_set_in();
-    }
-    uint32_t rawvalue = gpio_get_all();
-    uint8_t value = (rawvalue & DATA_BUS_MASK) >> DATA_BUS_SHIFT;
-
-    return value;
-}
-
-void pdatabus_wr(uint8_t data) {
-    if (!_databus_is_out()) {
-        // Set the DATA Bus to outbound
-        gpio_set_dir_out_masked(DATA_BUS_MASK);
-    }
-    uint32_t bdval = data << DATA_BUS_SHIFT;
-    gpio_put_masked(DATA_BUS_MASK, bdval);
 }
 
 

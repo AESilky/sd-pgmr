@@ -12,7 +12,9 @@
 #include "pdops.h"
 
 #include "board.h"
+#include "dbus.h"
 #include "system_defs.h"
+#include "try_throw_catch.h"
 
 #include "pico/stdlib.h"
 #include "pico/types.h"
@@ -67,6 +69,14 @@ static void _op_start() {
     }
 }
 
+static bool _pd_pwr_chk() {
+    if (!pdo_pwr_is_on()) {
+        warn_printf("PD Operations require that the Programmable Device is powered!\n");
+        return (false);
+    }
+    return (true);
+}
+
 /**
  * @brief Set the given RD&WR bits into the AddrH+Ctrl and write it to the latch.
  * This must be called from within a Board-OP.
@@ -78,12 +88,17 @@ static void _op_start() {
 static void _pd_rw_set(_frdwrb_t rwbits) {
     _addrHctrl = (_addrHctrl & ~_FRDWR_MASK) | (~rwbits & _FRDWR_MASK);
     board_op(_tkn, BDO_ADDR_HIGH_LD);   // This takes the Latch CLK low
-    pdatabus_wr(_addrHctrl);
+    dbus_wr(_addrHctrl);
     sleep_us(2);
     board_op(_tkn, BDO_NONE);           // This takes the Latch CLK high (clocks data to the output)
 }
 
 void pdo_addr_set(uint32_t addr) {
+    if (!_pd_pwr_chk()) {
+//        Throw(EXCEPTION_GENERAL);
+        return;
+    }
+
     uint8_t addrL = addr & 0x000000FF;
     uint8_t addrM = (addr & 0x0000FF00) >> 8;
     uint8_t addrH = ((addr & 0x000F0000) >> 16);
@@ -93,21 +108,25 @@ void pdo_addr_set(uint32_t addr) {
     // This requires three Board Ops, so we start an Op and keep it for all three.
     _op_start();
     board_op(_tkn, BDO_ADDR_HIGH_LD);   // This takes the Latch CLK low
-    pdatabus_wr(_addrHctrl);            // Put the data on the bus
+    dbus_wr(_addrHctrl);            // Put the data on the bus
     sleep_us(2);                        // Technically not needed, but it makes us feel better
     board_op(_tkn, BDO_ADDR_MID_LD);    // This takes the previous Latch CLK high and this one low
-    pdatabus_wr(addrM);
+    dbus_wr(addrM);
     sleep_us(2);
     board_op(_tkn, BDO_ADDR_LOW_LD);
-    pdatabus_wr(addrL);
+    dbus_wr(addrL);
     sleep_us(2);
     board_op(_tkn, BDO_NONE);           // Take the last CLK high
     // Put the P Data Bus back to input
-    pdatabus_set_in();
+    dbus_set_in();
     _op_end();
 }
 
 uint8_t pdo_data_get() {
+    if (!_pd_pwr_chk()) {
+        return (0);
+    }
+
     _op_start();
     _pd_rw_set(_FRD);
     _cs(true);
@@ -121,7 +140,7 @@ uint8_t pdo_data_get() {
     // Enable the output of the data-in latch
     gpio_put(OP_DATA_RD, 0);
     // Read the data-in latch
-    uint8_t data = pdatabus_rd();
+    uint8_t data = dbus_rd();
     // Disable the output of the data-in latch
     gpio_put(OP_DATA_RD, 1);
     _op_end();
@@ -130,8 +149,12 @@ uint8_t pdo_data_get() {
 }
 
 void pdo_data_set(uint8_t data) {
+    if (!_pd_pwr_chk()) {
+        return;
+    }
+
     _op_start();
-    pdatabus_wr(data); // put the data into the output latch
+    dbus_wr(data); // put the data into the output latch
     // Take 'data_latch' low then high
     gpio_put(OP_DATA_LATCH, 0);
     sleep_us(2);
@@ -149,6 +172,20 @@ void pdo_data_set(uint8_t data) {
     gpio_put(OP_DATA_WR, 1);
     _op_end();
 }
+
+void pdo_pwr_on(bool on) {
+    if (!on) {
+        // Set LOW to avoid back-powering circuit
+        gpio_put(OP_DATA_WR, 0);
+        gpio_put(OP_DATA_LATCH, 0);
+    }
+    gpio_put(OP_DEVICE_PWR, on);
+    if (on) {
+        gpio_put(OP_DATA_WR, 1); // Set HIGH to avoid driving the PD Data Bus
+        // Leave the DATA_LATCH, as taking it from LOW to HIGH latches data
+    }
+}
+
 
 
 void pdo_minit() {

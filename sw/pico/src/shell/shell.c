@@ -13,6 +13,12 @@
 #include "term.h"
 #include "include/util.h"
 
+#include "shell/cmd/cmd_t.h"
+#include "dbus/cmd/cmds.h"
+#include "debugging/cmd/cmds.h"
+#include "deviceops/cmd/cmds.h"
+#include "picohlp/cmd/cmds.h"
+
 #include "hardware/rtc.h"
 #include "pico/printf.h"
 
@@ -23,6 +29,7 @@
 #define ESC_CHARS_MAX 20
 
 static bool _initialized;
+static bool _started;
 
 static term_color_t _color_term_text_current_bg;
 static term_color_t _color_term_text_current_fg;
@@ -333,18 +340,9 @@ static void _term_init() {
     shell_use_output_color();
 }
 
-
-
-
 void shell_build(void) {
-    _term_init();
-    //_header_fill_fixed();
-    //_status_fill_fixed();
-    //shell_update_status();
     term_color_default();
     term_text_normal();
-
-    cmd_minit();
 }
 
 term_color_pair_t shell_color_get() {
@@ -553,6 +551,28 @@ void shell_use_cmd_color() {
 }
 
 
+
+void shell_start() {
+    if (_started) {
+        board_panic("!!! Shell should only be started once. !!!");
+    }
+    _started = true;
+    shell_build();
+
+    _term_init();
+    term_text_normal();
+    cmd_minit();
+
+    // Initialize all of the modules that have commands
+    //
+    dbcmds_minit();
+    dbuscmds_minit();   // Data Bus shell commands
+    pdcmds_minit();     // Programmable Device (Flash) shell commands
+    picocmds_minit();   // Pico Util/Control shell commands
+
+    // Activate the command processor
+    cmd_activate(true);
+}
 
 void shell_minit() {
     if (_initialized) {

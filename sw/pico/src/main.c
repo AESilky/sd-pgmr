@@ -38,7 +38,7 @@ static const int32_t say_hi[] = {
     DOT_MS,
     UP_MS,
     DOT_MS,
-    1000, // Pause before repeating
+    500, // Pause before repeating
     0 };
 
 int main() {

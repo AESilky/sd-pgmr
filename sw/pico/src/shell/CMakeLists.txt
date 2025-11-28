@@ -17,5 +17,18 @@ target_include_directories(shell INTERFACE
 target_link_libraries(shell INTERFACE
     cmd
     term
+    # Modules that provide commands
+    dbus_cmd
+    debug_cmd
+    pico_cmd
+    prog_device_cmd
+    # Pico Modules/Libraries used
     pico_stdlib
+)
+
+# Library: Shell STUB (do nothing shell_minit only)
+add_library(shell_stub INTERFACE)
+
+target_sources(shell_stub INTERFACE
+    shell_stub.c
 )

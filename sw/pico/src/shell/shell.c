@@ -9,9 +9,15 @@
 
 #include "board.h"
 #include "cmd.h"
-#include "cmt/cmt.h"
+#include "cmt.h"
 #include "term.h"
-#include "util.h"
+#include "include/util.h"
+
+#include "shell/cmd/cmd_t.h"
+#include "dbus/cmd/cmds.h"
+#include "debugging/cmd/cmds.h"
+#include "deviceops/cmd/cmds.h"
+#include "picohlp/cmd/cmds.h"
 
 #include "hardware/rtc.h"
 #include "pico/printf.h"
@@ -20,9 +26,10 @@
 #include <string.h>
 
 #define ESC_NOT_IN_PROGRESS (-1)
-#define ESC_CHARS_MAX 8
+#define ESC_CHARS_MAX 20
 
 static bool _initialized;
+static bool _started;
 
 static term_color_t _color_term_text_current_bg;
 static term_color_t _color_term_text_current_fg;
@@ -49,6 +56,21 @@ static shell_getline_callback_fn _getline_callback; // Function pointer to be ca
 
 static bool _process_char(char c, bool process_ctrl);
 
+static void _do_backspace() {
+    if (_getline_index > 0) {
+        _getline_index--;
+        term_cursor_left_1();
+        term_erase_char(1);
+    }
+    _getline_buf[_getline_index] = '\0';
+}
+
+static bool _handle_es_backspace(sescseq_t escseq, const char* escstr) {
+    // Left-Arrow (ESC[D) can be typed rather than the Backspace.
+    _do_backspace();
+    return (true);
+}
+
 
 /**
  * @brief Message handler for `MSG_INPUT_CHAR_READY`
@@ -56,7 +78,7 @@ static bool _process_char(char c, bool process_ctrl);
  *
  * @param msg Nothing important in the message.
  */
-void _shell_handle_input_char_ready(cmt_msg_t* msg) {
+static void _shell_handle_input_char_ready(cmt_msg_t* msg) {
     if (NULL != _input_available_handler) {
         _input_available_handler();
     }
@@ -66,7 +88,7 @@ void _shell_handle_input_char_ready(cmt_msg_t* msg) {
  * @brief A `term_notify_on_input_fn` handler for input ready.
  * @ingroup ui
  */
-void _input_ready_hook(void) {
+static void _input_ready_hook(void) {
     // Since this is called by an interrupt handler,
     // post a UI message so that the input is handled
     // by the UI message loop.
@@ -200,13 +222,20 @@ static bool _process_char(char c, bool process_ctrl) {
                 //
                 _esc_collected[_esc_collecting++] = c;
                 _esc_collected[_esc_collecting] = '\0';
-                // Currently, we only support 'Up Arrow' "CSI A". When we support more
-                // this will need to do more
+                // 'Up Arrow' "CSI A"
                 if (_esc_collecting == 2 && 'A' == c) {
                     // This is 'Up Arrow'
                     shell_escape_seq_handler fn = _get_escseq_handler(SES_KEY_ARROW_UP);
                     if (fn) {
                         processed = fn(SES_KEY_ARROW_UP, _esc_collected);
+                    }
+                }
+                // 'Left Arrow' "CSI D"
+                if (_esc_collecting == 2 && 'D' == c) {
+                    // This is 'Left Arrow'
+                    shell_escape_seq_handler fn = _get_escseq_handler(SES_KEY_ARROW_LF);
+                    if (fn) {
+                        processed = fn(SES_KEY_ARROW_LF, _esc_collected);
                     }
                 }
                 _esc_collecting = ESC_NOT_IN_PROGRESS;
@@ -232,12 +261,7 @@ static bool _process_char(char c, bool process_ctrl) {
             case BS:
             case DEL:
                 // Backspace/Delete - move back if we aren't at the BOL
-                if (_getline_index > 0) {
-                    _getline_index--;
-                    term_cursor_left_1();
-                    term_erase_char(1);
-                }
-                _getline_buf[_getline_index] = '\0';
+                _do_backspace();
                 processed = true;
                 break;
             case ESC:
@@ -298,8 +322,12 @@ static void _term_init() {
     memset(_wraptext_line, 0, sizeof(_wraptext_line));
     _wraptext_column = 0;
     _input_available_handler = NULL;
+    // Clear out the control handlers and escape handlers
     memset(_control_char_handler, 0, sizeof(_control_char_handler));
     memset(_escseq_handler, 0, sizeof(_escseq_handler));
+    // Register escape sequence handlers
+    shell_register_esc_seq_handler(SES_KEY_ARROW_LF, _handle_es_backspace);
+    //
     term_reset();
     term_color_default();
     term_set_type(VT_510_TYPE_SPEC, VT_510_ID_SPEC);
@@ -312,18 +340,9 @@ static void _term_init() {
     shell_use_output_color();
 }
 
-
-
-
 void shell_build(void) {
-    _term_init();
-    //_header_fill_fixed();
-    //_status_fill_fixed();
-    //shell_update_status();
     term_color_default();
     term_text_normal();
-
-    cmd_module_init();
 }
 
 term_color_pair_t shell_color_get() {
@@ -533,13 +552,35 @@ void shell_use_cmd_color() {
 
 
 
-void shell_module_init() {
+void shell_start() {
+    if (_started) {
+        board_panic("!!! Shell should only be started once. !!!");
+    }
+    _started = true;
+    shell_build();
+
+    _term_init();
+    term_text_normal();
+    cmd_minit();
+
+    // Initialize all of the modules that have commands
+    //
+    dbcmds_minit();
+    dbuscmds_minit();   // Data Bus shell commands
+    pdcmds_minit();     // Programmable Device (Flash) shell commands
+    picocmds_minit();   // Pico Util/Control shell commands
+
+    // Activate the command processor
+    cmd_activate(true);
+}
+
+void shell_minit() {
     if (_initialized) {
-        board_panic("!!! shell_module_init already called. !!!");
+        board_panic("!!! shell_modinit already called. !!!");
     }
     _initialized = true;
 
-    term_module_init();
+    term_minit();
     _esc_collecting = ESC_NOT_IN_PROGRESS;
     //
     // Register our message handler

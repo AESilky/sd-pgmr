@@ -15,7 +15,7 @@
 #include "dskops.h"
 
 #include "board.h"
-#include "cmt/cmt_t.h"
+#include "cmt_t.h"
 #include "sd_card.h"
 
 #include "pico/types.h" // 'uint' and other standard types
@@ -121,7 +121,7 @@ FRESULT dsk_unmount_sd() {
 // Initialization/Start-Up Methods
 // ====================================================================
 
-void dskops_module_init() {
+void dskops_minit() {
     if (_initialized) {
         board_panic("!!! dskops_module_init: Called more than once !!!");
     }

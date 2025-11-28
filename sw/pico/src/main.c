@@ -10,9 +10,9 @@
 #include "board.h"
 #include "debug_support.h"
 #include "multicore.h"
-#include "picohlp/picoutil.h"
+#include "picoutil.h"
 //
-#include "cmt/cmt.h"
+#include "cmt.h"
 #include "hwrt/hwrt.h"
 //
 #include "pico/binary_info.h"
@@ -38,7 +38,7 @@ static const int32_t say_hi[] = {
     DOT_MS,
     UP_MS,
     DOT_MS,
-    1000, // Pause before repeating
+    500, // Pause before repeating
     0 };
 
 int main() {
@@ -58,10 +58,10 @@ int main() {
     sleep_ms(800);
 
     // Initialize the multicore subsystem
-    multicore_module_init(debug_mode_enabled());
+    multicore_minit(debug_mode_enabled());
 
     // Initialize the Cooperative Multi-Tasking subsystem
-    cmt_module_init();
+    cmt_minit();
 
     // Starting Core-1 will run the `core1_main` which is defined for the appropriate
     // Board-0 or Board-1 functionality.

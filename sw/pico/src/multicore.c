@@ -8,13 +8,13 @@
  *
 */
 #include "multicore.h"
-#include "cmt/cmt.h"
+#include "cmt.h"
 #include "hwrt/hwrt.h"  // For `core1_main`
-#include "util.h"  // For 'lowByte'
+#include "include/util.h"       // For 'lowByte'
 
 #include "board.h"
 #include "debug_support.h"
-#include "picohlp/picoutil.h"
+#include "picoutil.h"
 
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
@@ -152,7 +152,7 @@ void start_core1() {
     multicore_launch_core1(core1_main);
 }
 
-void multicore_module_init(bool no_qadd_panic) {
+void multicore_minit(bool no_qadd_panic) {
     static bool _initialized = false;
     if (_initialized) {
         board_panic("Multicore already initialized");

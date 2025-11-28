@@ -16,7 +16,10 @@
 			"rtc.h": "c",
 			"picoutil.h": "c",
 			"debug_support.h": "c",
-			"util.h": "c"
+			"util.h": "c",
+			"shell.h": "c",
+			"cmd_t.h": "c",
+			"setjmp.h": "c"
 		},
 		"cortex-debug.variableUseNaturalFormat": false
 	}

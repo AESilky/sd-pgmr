@@ -5,8 +5,8 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
-#include "../display.h"
-#include "../dispops/dispops.h"
+#include "display.h"
+#include "dispops.h"
 
 #include <stdio.h>
 

@@ -65,10 +65,14 @@ void disp_reset() {
         return;
     }
     board_op(boptkn, BDO_NONE);
+    // PD Power needs to be ON to do the reset
+    uint32_t b = gpio_get(OP_DEVICE_PWR);
+    gpio_put(OP_DEVICE_PWR, true);
     sleep_ms(10);
     board_op(boptkn, BDO_DISPLAY_RST);
     sleep_ms(10);
     board_op(boptkn, BDO_NONE);
+    gpio_put(OP_DEVICE_PWR, b); // Put the PD Power state back as it was
     board_op_end(boptkn);
 }
 

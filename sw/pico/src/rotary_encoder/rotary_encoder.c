@@ -35,8 +35,8 @@
 #include "rotary_encoder.h"
 
 #include "board.h"
-#include "picohlp/picoutil.h"
-#include "cmt/cmt.h"
+#include "picoutil.h"
+#include "cmt.h"
 
 #include "pico/stdlib.h"
 #include "hardware/clocks.h"
@@ -148,7 +148,7 @@ void re_turn_irq_handler(uint gpio, uint32_t events) {
 
 
 
-void re_module_init() {
+void re_minit() {
     if (_initialized) {
         board_panic("!!! re_module_init: Called more than once !!!");
     }

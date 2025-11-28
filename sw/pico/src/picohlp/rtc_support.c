@@ -48,7 +48,7 @@ static bool _initialized;
 // Initialization/Start-Up Methods
 // ====================================================================
 
-void rtc_support_module_init() {
+void rtc_support_minit() {
     if (_initialized) {
         return;     // Already initialized, just return.
     }

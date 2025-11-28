@@ -6,18 +6,29 @@ target_sources(shell INTERFACE
 )
 
 add_subdirectory(cmd)
-add_subdirectory(cmds)
 add_subdirectory(term)
 
 target_include_directories(shell INTERFACE
-	${CMAKE_CURRENT_LIST_DIR}
-	cmd
-	term
+	${CMAKE_CURRENT_LIST_DIR}/include
+	${CMAKE_CURRENT_LIST_DIR}/cmd
+	${CMAKE_CURRENT_LIST_DIR}/term
 )
 
 target_link_libraries(shell INTERFACE
     cmd
-    cmds
     term
+    # Modules that provide commands
+    dbus_cmd
+    debug_cmd
+    pico_cmd
+    prog_device_cmd
+    # Pico Modules/Libraries used
     pico_stdlib
+)
+
+# Library: Shell STUB (do nothing shell_minit only)
+add_library(shell_stub INTERFACE)
+
+target_sources(shell_stub INTERFACE
+    shell_stub.c
 )

@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 #include "cmd_t.h"
-#include "cmt/cmt.h"
+#include "cmt.h"
 
 #include <limits.h>
 
@@ -64,7 +64,7 @@ extern const cmd_state_t cmd_get_state();
  * @brief Initialize the command processor.
  * @ingroup ui
  */
-extern void cmd_module_init(void);
+extern void cmd_minit(void);
 
 #ifdef __cplusplus
     }

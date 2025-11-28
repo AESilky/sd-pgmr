@@ -105,7 +105,7 @@ cmt_msg_hdlr_ll_ent_t* cmt_check_mhllent(cmt_msg_hdlr_ll_ent_t* ent, int ref_val
 }
 
 
-void cmt_heap_module_init() {
+void cmt_heap_minit() {
     // Link all of our entries into the free lists.
     mhllent_free = &mhllent_pool[0];
     for (int i=0; i < (CMT_MHLLENT_CNT - 1); i++) {

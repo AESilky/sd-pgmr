@@ -456,7 +456,7 @@ extern bool term_input_overflow(void);
  *
  * @note This must be called while `sleep` is allowed.
  */
-extern void term_module_init(void);
+extern void term_minit(void);
 
 /**
  * @brief Terminal ID returned upon power-up.

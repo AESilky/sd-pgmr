@@ -37,7 +37,6 @@ typedef enum BOARD_OP {
     BDO_ADDR_MID_LD = OP8_ADDRM_LD,
     BDO_ADDR_HIGH_LD = OP8_ADDRH_LD,
     BDO_PRGMDEV_SEL = OP8_DEV_SEL,
-    BDO_DISPLAY_RST = OP8_DISP_RST,
 } boardop_t;
 
 

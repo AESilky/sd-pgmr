@@ -45,12 +45,18 @@ extern int32_t re_tdelta();
 extern int32_t re_tlast();
 
 /**
- * @brief Interrupt handler for the Rotary Encoder shaft.
+ * @brief The change over time of the encoder.
  *
- * @param gpio The GPIO that caused the interrupt (should be the GPIO for the RE-A signal)
- * @param events The GPIO event that caused the interrupt
+ * @return int32_t The change.
  */
-extern void re_turn_irq_handler(uint gpio, uint32_t events);
+extern int32_t re_velocity();
+
+/**
+ * @brief Handler for the Rotary Encoder shaft.
+ *
+ * @param phase The EVEN indicates to request the value, ODD to fetch the value.
+ */
+extern void re_turn_handler(uint phase);
 
 /**
  * @brief Initialize the rotary encoder decode module.

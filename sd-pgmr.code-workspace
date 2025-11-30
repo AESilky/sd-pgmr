@@ -21,6 +21,6 @@
 			"cmd_t.h": "c",
 			"setjmp.h": "c"
 		},
-		"cortex-debug.variableUseNaturalFormat": false
+		"cortex-debug.variableUseNaturalFormat": true
 	}
 }

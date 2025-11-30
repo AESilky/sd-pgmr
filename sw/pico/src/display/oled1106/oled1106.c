@@ -10,6 +10,9 @@
 #include "dispops.h"
 #include "oled1106.h"
 
+#include "board.h"
+#include "system_defs.h"
+
 #include <string.h>
 
 // commands (see datasheet)
@@ -47,6 +50,8 @@
 #define DISP_CHAR_LINES 6
 #define DISP_CHAR_COLS 14
 //
+
+static bool _initialized;
 
 /** @brief Render area for the full display screen */
 render_area_t display_full_area = { start_col: 0, end_col : OLED_HRES - 1, start_page : 0, end_page : OLED_NUM_PAGES - 1 };
@@ -616,6 +621,25 @@ void display_font_test(void) {
  * This must be called before using the display.
  */
 void display_minit(bool invert) {
+    if (_initialized) {
+        board_panic("!!! display_minit called more than once !!!\n");
+    }
+    _initialized = true;
+    // Setup the Display specific GPIO
+    gpio_set_function(SPI_DISPLAY_CS, GPIO_FUNC_SIO);
+    gpio_put(SPI_DISPLAY_CS, 1);
+    gpio_set_dir(SPI_DISPLAY_CS, GPIO_OUT);
+    gpio_set_drive_strength(SPI_DISPLAY_CS, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(SPI_DISPLAY_CTRL, GPIO_FUNC_SIO);
+    gpio_put(SPI_DISPLAY_CTRL, 1);
+    gpio_set_dir(SPI_DISPLAY_CTRL, GPIO_OUT);
+    gpio_set_drive_strength(SPI_DISPLAY_CTRL, GPIO_DRIVE_STRENGTH_2MA);
+    gpio_set_function(DISPLAY_RST, GPIO_FUNC_SIO);
+    gpio_put(DISPLAY_RST, 1);
+    gpio_set_dir(DISPLAY_RST, GPIO_OUT);
+    gpio_set_drive_strength(DISPLAY_RST, GPIO_DRIVE_STRENGTH_2MA);
+
+
     // run through the complete initialization process
     _oled1106_minit(invert);
     display_clear(true);

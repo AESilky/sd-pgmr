@@ -33,11 +33,13 @@ typedef enum RPTOP_ {
 
 static uint32_t _addr;
 static uint8_t _data;
+static uint8_t _sect;  // Sector (set from address conversion or directly)
 static bool _repeat;
 static rptop_t _rptop;
 static bool _rptdlyip; // True if a repeat delay has been scheduled and not received.
 
 
+const cmd_handler_entry_t cmds_addrtosect_entry;
 const cmd_handler_entry_t cmds_devaddr_entry;
 const cmd_handler_entry_t cmds_devaddr_n_entry;
 const cmd_handler_entry_t cmds_devdump_entry;
@@ -49,46 +51,57 @@ const cmd_handler_entry_t cmds_devwr_n_entry;
 
 
 /**
- * @brief Get a 16-bit value from a string or "." to keep the current value.
+ * @brief Get an unsigned value under a limit from a string or "." to keep the current value.
  *
- * This loads `v` with the value from `str` if it is a valid hex value from 0 to FFFF.
- * It leaves the `v` unchanged if the `str` is ".".
+ * This loads `val` with the value from `str` if it is a valid value from 0 to less than limit.
+ * It leaves the `val` unchanged if the `str` is ".".
  *
  * If the str isn't valid or the value is greater than FFFF a message is printed to the shell.
  *
- * @param addr Pointer to an unsigned word (16-bit)
+ * @param val Pointer to an unsigned word (16-bit)
  * @param str String to parse for the value
+ * @param limit The maximum value allowed
+ * @param hex True to process a hex value. False for decimal.
  * @param err_type String with a word(s) describing the type of expected value (used in the error message)
  * @return true Good conversion
  * @return false Invalid hex string or value larger than FFFF
  */
-static bool _get_v16(uint16_t* addr, const char* str, const char* err_type) {
+static bool _get_val(uint32_t* val, const char* str, uint32_t limit, bool hex, const char* err_type) {
     bool valid;
-    uint32_t addrv;
+    uint32_t v;
     if (strcmp(".", str) != 0) {
-        addrv = uint_from_hexstr(str, &valid);
+        if (hex) {
+            v = uint_from_hexstr(str, &valid);
+        }
+        else {
+            v = uint_from_str(str, &valid);
+        }
         if (!valid) {
-            shell_printferr("Value error - '%s' is not valid HEX.\n", str);
+            char* type = (hex ? "HEX" : "decimal");
+            shell_printferr("Value error - '%s' is not valid %s.\n", str, type);
             return (false);
         }
-        if (addrv > 0xFFFF) {
-            shell_printferr("Value error - '%s' is not a valid %s. Must be 0-FFFF.\n", str, err_type);
+        if (v > limit) {
+            shell_printferr("Value error - '%s' is not a valid %s.\n", str, err_type);
             return (false);
         }
-        *addr = addrv;
+        *val = v;
     }
     return (true);
 }
 
 static bool _get_addr(char* addrstr) {
-    uint16_t addr = _addr;
-    if (!_get_v16(&addr, addrstr, "hex address")) {
+    uint32_t addr = _addr;
+    if (!_get_val(&addr, addrstr, 0x7FFFF, true, "hex address")) {
         return (false);
     }
     if (addr != _addr) {
         // The address is different, set the address on the device.
         _addr = addr;
         pdo_addr_set(_addr);
+        if (ERRORNO) {
+            return false;
+        }
     }
     return (true);
 }
@@ -120,13 +133,33 @@ static void _repeat_handler(cmt_msg_t *msg) {
     }
 }
 
+static int _exec_atos(int argc, char** argv, const char* unparsed) {
+    if (argc != 2) {
+        // We take exactly 1 argument.
+        cmd_help_display(&cmds_addrtosect_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    uint32_t addr = _addr;
+    // Arg is address (HEX or '.').
+    bool valid = _get_val(&addr, argv[1], 0x7FFFF, true, "hex address");
+    if (!valid) {
+        return (-1);
+    }
+    _addr = addr;
+    _sect = addr / PD_SECTSIZE;
+    shell_printf("Addr: %05X  Sector: %hu\n", addr, _sect);
+    return (0);
+}
+
 static int _exec_addr(int argc, char** argv, const char* unparsed) {
-    int retval = 0;
     if (argc > 2) {
         // We only take 0 or 1 argument.
         cmd_help_display(&cmds_devaddr_entry, HELP_DISP_USAGE);
         return (-1);
     }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    int retval = 0;
     _rptop = RPT_NONE;  // no repeat unless enabled below
     _repeat = false; // using this command with other than 'R' stops any repeat operation.
     if (argc > 1) {
@@ -140,12 +173,13 @@ static int _exec_addr(int argc, char** argv, const char* unparsed) {
             char* addrstr = argv[1];
             if (!_get_addr(addrstr)) {
                 // _get_addr tells the user the address wasn't valid - just exit.
-                return (-1);
+                retval = -1;
+                goto _finally;
             }
         }
     }
     // Display the address
-    shell_printf("%6.6X\n", _addr);
+    shell_printf("%05X\n", _addr);
     // If they don't want a repeated address set, cancel any op-in-progress
     if (!_repeat) {
         if (_rptdlyip) {
@@ -157,20 +191,34 @@ static int _exec_addr(int argc, char** argv, const char* unparsed) {
         _repeat_handler(NULL);
     }
 
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
     return (retval);
 }
 
 static int _exec_addrn(int argc, char** argv, const char* unparsed) {
-    int retval = 0;
     if (argc > 1) {
         // We don't take any arguments.
         cmd_help_display(&cmds_devaddr_n_entry, HELP_DISP_USAGE);
         return (-1);
     }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    int retval = 0;
     _addr++;
     pdo_addr_set(_addr);
+    if (ERRORNO) {
+        retval = -1;
+        goto _finally;
+    }
     // Display the address
-    shell_printf("%6.6X\n", _addr);
+    shell_printf("%05X\n", _addr);
+
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
 
     return (retval);
 }
@@ -178,28 +226,32 @@ static int _exec_addrn(int argc, char** argv, const char* unparsed) {
 static int _exec_dump(int argc, char** argv, const char* unparsed) {
     static uint16_t _dump_len = 256; // Display 256 bytes unless told otherwise
 
-    int retval = 0;
     if (argc > 3) {
         // We take 0, 1, or 2 arguments.
         cmd_help_display(&cmds_devdump_entry, HELP_DISP_USAGE);
         return (-1);
     }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    int retval = 0;
     argv++; // Skip the command name
     argc--;
     if (argc > 0) {
-        uint16_t saddr = _addr;
-        uint16_t len = _dump_len;
+        uint32_t saddr = _addr;
+        uint32_t len = _dump_len;
         // First Arg is START (HEX or '.').
-        bool valid = _get_v16(&saddr, *argv, "hex address");
+        bool valid = _get_val(&saddr, *argv, 0x7FFFF, true, "hex address");
         if (!valid) {
-            return (-1);
+            retval = -1;
+            goto _finally;
         }
         argc--;
         argv++;
         if (argc > 0) {
-            valid = _get_v16(&len, *argv, "length");
+            valid = _get_val(&len, *argv, 1024, false, "length");
             if (!valid) {
-                return (-1);
+                retval = -1;
+                goto _finally;
             }
             argc--;
             argv++;
@@ -208,6 +260,10 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
             // The address is different, set the address on the device.
             _addr = saddr;
             pdo_addr_set(_addr);
+            if (ERRORNO) {
+                retval = -1;
+                goto _finally;
+            }
         }
         _dump_len = len;
     }
@@ -217,17 +273,25 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
         // Read and display rows of up to 16 bytes
         //
         // display the address
-        shell_printf("%04X  ", _addr);
+        shell_printf("%05X  ", _addr);
         int i, j;
         for (i = 0; i < 16; i++) {
             j = i;
             // Read the data from the device
             v[i] = pdo_data_get();
+            if (ERRORNO) {
+                retval = -1;
+                goto _finally;
+            }
             // Print the HEX of the value (ASCII comes later)
             shell_printf("%02X ", v[i]);
             len++;
             _addr++;
             pdo_addr_set(_addr);
+            if (ERRORNO) {
+                retval = -1;
+                goto _finally;
+            }
             if (len == _dump_len) {
                 i++;
                 break; // We've reached the number of bytes requested.
@@ -245,33 +309,48 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
         }
         shell_printf("\n");
     };
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
 
     return (retval);
 }
 
 static int _exec_dpwr(int argc, char** argv, const char* unparsed) {
+    progdev_pwr_mode_t pm;
+
     if (argc > 2) {
         // We only take a single argument.
         cmd_help_display(&cmds_devpwr_entry, HELP_DISP_USAGE);
         return (-1);
     }
     else if (argc > 1) {
-        // Argument is bool (ON/TRUE/YES/1 | <anything-else>) to set flag
-        bool b = bool_from_str(argv[1]);
-        pdo_pwr_on(b);
+        // Argument is 'A' or bool (ON/TRUE/YES/1 | <anything-else>) to set flag
+        if (strcasecmp(argv[1], "A") == 0) {
+            pdo_pwr_mode(PDPWR_AUTO);
+        }
+        else {
+            bool b = bool_from_str(argv[1]);
+            pm = (b ? PDPWR_ON : PDPWR_OFF);
+            pdo_pwr_mode(pm);
+        }
     }
-    shell_printf("Device Power: %s\n", (pdo_pwr_is_on() ? "ON" : "OFF"));
+    pm = pdo_pwr_mode_get();
+    char* modestr = (pm == PDPWR_OFF ? "PM_OFF" : (pm == PDPWR_ON ? "PM_ON" : "PM_AUTO"));
+    shell_printf("Power Mode: %s  Device Power: %s\n", modestr, (pdo_pwr_is_on() ? "ON" : "OFF"));
 
     return (0);
 }
 
 static int _exec_rd(int argc, char** argv, const char* unparsed) {
-    int retval = 0;
     if (argc > 2) {
         // We only take 0 or 1 argument.
         cmd_help_display(&cmds_devrd_entry, HELP_DISP_USAGE);
         return (-1);
     }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    int retval = 0;
     _repeat = false; // using this command with other than 'R' stops any repeat operation.
     _rptop = RPT_NONE;  // no repeat unless enabled below
     if (argc > 1) {
@@ -285,7 +364,8 @@ static int _exec_rd(int argc, char** argv, const char* unparsed) {
             char* addrstr = argv[1];
             if (!_get_addr(addrstr)) {
                 // _get_addr tells the user the address wasn't valid - just exit.
-                return (-1);
+                retval = -1;
+                goto _finally;
             }
         }
     }
@@ -297,36 +377,56 @@ static int _exec_rd(int argc, char** argv, const char* unparsed) {
     }
     // Read the data
     uint8_t data = pdo_data_get();
+    if (ERRORNO) {
+        retval = -1;
+        goto _finally;
+    }
     // Display the address and data
-    shell_printf("%6.6X %2.2X\n", _addr, data);
+    shell_printf("%05X %02X\n", _addr, data);
     if (_repeat) {
         // They want a repeated read, kick it off
         _repeat_handler(NULL);
     }
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
 
     return (retval);
 }
 
 static int _exec_nrd(int argc, char** argv, const char* unparsed) {
-    int retval = 0;
     if (argc > 1) {
         // We don't take any arguments.
         cmd_help_display(&cmds_devrd_n_entry, HELP_DISP_USAGE);
         return (-1);
     }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    int retval = 0;
     _rptop = RPT_RD_DATA;
     _addr++;
     pdo_addr_set(_addr);
+    if (ERRORNO) {
+        retval = -1;
+        goto _finally;
+    }
     // Read the data
     uint8_t data = pdo_data_get();
+    if (ERRORNO) {
+        retval = -1;
+        goto _finally;
+    }
     // Display the address and data
-    shell_printf("%6.6X %2.2X\n", _addr, data);
+    shell_printf("%05X %02X\n", _addr, data);
+
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
 
     return (retval);
 }
 
 static int _exec_wr(int argc, char** argv, const char* unparsed) {
-    int retval = 0;
     int arg = 1;
     if (argc < 2 || argc > 3) {
         // We only take 1 or 2 arguments: [addr] data | R
@@ -334,6 +434,9 @@ static int _exec_wr(int argc, char** argv, const char* unparsed) {
         return (-1);
     }
     // using this command with other than 'R' stops any repeat operation.
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    int retval = 0;
     _rptop = RPT_NONE;
     _repeat = false;
     if (argc > 2) {
@@ -343,7 +446,8 @@ static int _exec_wr(int argc, char** argv, const char* unparsed) {
         // Get an address.
         if (!_get_addr(addrstr)) {
             // _get_addr tells the user the address wasn't valid - just exit.
-            return (-1);
+            retval = -1;
+            goto _finally;
         }
     }
     if (tolower(*argv[arg]) == 'r') {
@@ -356,7 +460,8 @@ static int _exec_wr(int argc, char** argv, const char* unparsed) {
         uint8_t data = (uint16_t)uint_from_hexstr(argv[arg], &success);
         if (!success) {
             shell_printf("Value error - '%s' is not a valid hex byte.\n", argv[1]);
-            return (-1);
+            retval = -1;
+            goto _finally;
         }
         _data = data;
     }
@@ -368,43 +473,74 @@ static int _exec_wr(int argc, char** argv, const char* unparsed) {
     }
     // Write the data
     pdo_data_set(_data);
+    if (ERRORNO) {
+        retval = -1;
+        goto _finally;
+    }
     if (_repeat) {
         // They want a repeated write, kick it off
         _repeat_handler(NULL);
     }
 
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
     return (retval);
 }
 
 static int _exec_nwr(int argc, char** argv, const char* unparsed) {
-    int retval = 0;
     if (argc != 2) {
         // We only take 1 argument: data
         cmd_help_display(&cmds_devwr_n_entry, HELP_DISP_USAGE);
         return (-1);
     }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    int retval = 0;
     _rptop = RPT_WR_DATA;
     _addr++;
     pdo_addr_set(_addr);
+    if (ERRORNO) {
+        retval = -1;
+        goto _finally;
+    }
     // Get the data to write
     bool success;
     uint8_t data = (uint16_t)uint_from_hexstr(argv[1], &success);
     if (!success) {
         shell_printf("Value error - '%s' is not a valid hex byte.\n", argv[1]);
-        return (-1);
+        retval = -1;
+        goto _finally;
     }
     _data = data;
     // Write the data
     pdo_data_set(_data);
+    if (ERRORNO) {
+        retval = -1;
+        goto _finally;
+    }
+
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
 
     return (retval);
 }
+
+const cmd_handler_entry_t cmds_addrtosect_entry = {
+    _exec_atos,
+    4,
+    "pdatos",
+    "addr(hex)",
+    "Convert an address to a Device Sector#.",
+};
 
 const cmd_handler_entry_t cmds_devaddr_entry = {
     _exec_addr,
     4,
     "pdaddr",
-    "[addr(hex)|R]"
+    "[addr(hex)|R]",
     "Show the address being used and optionally set it. Repeat setting it (for troubleshooting).",
 };
 
@@ -428,8 +564,8 @@ const cmd_handler_entry_t cmds_devpwr_entry = {
     _exec_dpwr,
     3,
     "pdpwr",
-    "[ON|OFF]",
-    "Turn device power ON/OFF.",
+    "A|ON|OFF",
+    "Set device Power Mode A|OFF|ON.",
 };
 
 const cmd_handler_entry_t cmds_devrd_entry = {
@@ -466,6 +602,7 @@ const cmd_handler_entry_t cmds_devwr_n_entry = {
 
 
 void pdcmds_minit(void) {
+    cmd_register(&cmds_addrtosect_entry);
     cmd_register(&cmds_devaddr_entry);
     cmd_register(&cmds_devaddr_n_entry);
     cmd_register(&cmds_devdump_entry);

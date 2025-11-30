@@ -25,45 +25,44 @@
 ; sampling loop takes 14 cycles, so this program is able to read step rates up
 ; to sysclk / 14  (e.g., sysclk 125MHz, max step rate = 8.9 Msteps/sec)
 
-
 ; 00 state
-	JMP update	; read 00
-	JMP decrement	; read 01
-	JMP increment	; read 10
-	JMP update	; read 11
+	JMP update		; 00: read 00
+	JMP decrement	; 01: read 01
+	JMP increment	; 02: read 10
+	JMP update		; 03: read 11
 
 ; 01 state
-	JMP increment	; read 00
-	JMP update	; read 01
-	JMP update	; read 10
-	JMP decrement	; read 11
+	JMP increment	; 04: read 00
+	JMP update		; 05: read 01
+	JMP update		; 06: read 10
+	JMP decrement	; 07: read 11
 
 ; 10 state
-	JMP decrement	; read 00
-	JMP update	; read 01
-	JMP update	; read 10
-	JMP increment	; read 11
+	JMP decrement	; 08: read 00
+	JMP update		; 09: read 01
+	JMP update		; 0A: read 10
+	JMP increment	; 0B: read 11
 
 ; to reduce code size, the last 2 states are implemented in place and become the
 ; target for the other jumps
 
 ; 11 state
-	JMP update	; read 00
-	JMP increment	; read 01
+	JMP update		; 0C: read 00
+	JMP increment	; 0D: read 01
 decrement:
 	; note: the target of this instruction must be the next address, so that
 	; the effect of the instruction does not depend on the value of Y. The
 	; same is true for the "JMP X--" below. Basically "JMP Y--, <next addr>"
 	; is just a pure "decrement Y" instruction, with no other side effects
-	JMP Y--, update	; read 10
-
+	JMP Y--, update	; 0E: read 10
 	; this is where the main loop starts
 .wrap_target
 update:
-	; we start by checking the TX FIFO to see if the main code is asking for
+	; start by checking the TX FIFO to see if the main code is asking for
 	; the current count after the PULL noblock, OSR will have either 0 if
 	; there was nothing or the value that was there
-	SET X, 0
+	SET X, 0 		; 0F: read 11
+
 	PULL noblock
 
 	; since there are not many free registers, and PULL is done into OSR, we
@@ -75,12 +74,12 @@ update:
 	; the main code did not ask for the count, so just go to "sample_pins"
 	JMP !X, sample_pins
 
-	; if it did ask for the count, then we push it
+	; it did ask for the count, push it
 	MOV ISR, Y	; we trash ISR, but we already have a copy in OSR
 	PUSH
 
 sample_pins:
-	; we shift into ISR the last state of the 2 input pins (now in OSR) and
+	; Shift into ISR the last state of the 2 input pins (now in OSR) and
 	; the new state of the 2 pins, thus producing the 4 bit target for the
 	; computed jump into the correct action for this state
 	MOV ISR, NULL

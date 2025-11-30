@@ -62,16 +62,17 @@ extern "C" {
 #define OP8_BITS_SHIFT          18              // Right-Shift needed to move the OP8 bits to the correct GPIO position
 // OP8 Operations
 #define OP8_NONE                 0              // 0 = No-Op
-#define OP8_DISP_RST             1              // Display Reset
+#define OP8_NOP                  1              // Display Reset
 #define OP8_ADDRL_LD             2              // Addr Latch LOW Load
 #define OP8_ADDRM_LD             3              // Addr Latch MID Load
 #define OP8_ADDRH_LD             4              // Addr Latch HIGH Load
 #define OP8_DEV_SEL              5              // Device (FlashROM) Select
-#define OP8_NOP                  6              // No-Operation
-#define OP8_NOP2                 7              // No-Operation
+#define OP8_NOP2                 6              // No-Operation
+#define OP8_NOP3                 7              // No-Operation
 
 // Operations controlled directly by a GPIO
 //
+#define DISPLAY_RST             GP28            // Hard-reset the display
 #define OP_DEVICE_PWR           GP9             // Turns the device power on
 #define OP_DATA_RD              GP26            // Enable data from the device to the bus
 #define OP_DATA_WR              GP27            // Enable data from the bus to the device
@@ -107,7 +108,7 @@ extern "C" {
 
 // Switch Control (applies to both Rotary and Command/Attention switches)
 //
-#define SWITCH_LONGPRESS_MS    800              // 0.8 seconds (800ms) is considered a 'long press'
+#define SWITCH_LONGPRESS_MS    450              // 0.45 seconds (450ms) is considered a 'long press'
 #define SWITCH_REPEAT_MS       250              // If a switch is long-pressed, repeat it every 1/4 second.
 #define SWITCH_PRESSED           0              // Input (digital) is low when the switch is pressed
 #define SWITCH_RELEASED          1              // Input (digital) is high when the switch is not pressed
@@ -117,7 +118,6 @@ extern "C" {
 //
 #define IRQ_CMD_ATTN_SW         CMD_ATTN_SW_GPIO
 #define IRQ_ROTARY_SW           ROTARY_SW_GPIO
-#define IRQ_ROTARY_TURN         ROTARY_A_GPIO
 
 // PWM - Used for a recurring interrupt for scheduled messages, sleep, housekeeping
 //    RP2040 has 8 slices, RP2350 has 12. Use the last slice.

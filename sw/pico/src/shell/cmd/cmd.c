@@ -10,6 +10,7 @@
 #include "system_defs.h"
 #include "board.h"
 
+#include "app_t.h"
 #include "cmt.h"
 
 #include "term.h"
@@ -347,7 +348,6 @@ static void _hook_keypress() {
     term_register_notify_on_input(_notified_of_keypress);
 }
 
-//TryCatchInit;
 static void _process_line(char* line) {
     char* argv[CMD_LINE_MAX_ARGS];
     memset(argv, 0, sizeof(argv));
@@ -379,33 +379,10 @@ static void _process_line(char* line) {
                     // This command matches
                     command_matched = true;
                     _cmd_state = CMD_EXECUTING_COMMAND;
-                    // Use a Try/Catch to allow command handlers to Throw an exception
-                    // if they encounter an error, rather than having to un-nest a return
-                    // value.
-                    //
-//                    Try {
-                        chrv = cmd->cmd(argc, argv, line);
-//                    }
-                    // Catch( CMD_ARG_NUMBER_EXCEPT ) {
-                    //     chrv = CMD_ARG_NUMBER_EXCEPT;
-                    // }
-                    // Catch( CMD_ARG_VALUE_EXCEPT ) {
-                    //     chrv = CMD_ARG_VALUE_EXCEPT;
-                    // }
-                    // Catch( CMD_ENV_EXCEPT ) {
-                    //     chrv = CMD_ENV_EXCEPT;
-                    // }
-                    // Catch( CMD_GEN_EXCEPT ) {
-                    //     chrv = CMD_GEN_EXCEPT;
-                    // }
-                    // Catch( EXCEPTION_GENERAL ) {
-                    //     chrv = EXCEPTION_GENERAL;
-                    // }
-                    // Finally
-                    // {
-                        _exit_val = chrv;
-                    // }
-                    // Etry;
+                    // Clear the Global Error Number
+                    ERRORNO = 0;
+                    chrv = cmd->cmd(argc, argv, line);
+                    _exit_val = chrv;
                     break;
                 }
             }

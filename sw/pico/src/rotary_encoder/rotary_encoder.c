@@ -55,8 +55,9 @@ static volatile bool _initialized;
                                             // The B phase must be connected to the next pin
 static volatile int16_t _enc_delta;
 static volatile int32_t _enc_t_last;
-static volatile int32_t _enc_t_prior;
+static volatile int32_t _enc_t_delta;
 static volatile int32_t _enc_value;
+static volatile int32_t _enc_velocity;
 
 static void _gpio_event_string(char *buf, uint32_t events);
 
@@ -97,11 +98,11 @@ static inline void _quadrature_encoder_request_count(PIO pio, uint sm) {
     pio->txf[sm] = 1;
 }
 static inline int32_t _quadrature_encoder_fetch_count(PIO pio, uint sm) {
-    bool rdy = false;
-    for (int i = 0; !rdy && i < 50000; i++) {
-        rdy = pio_sm_is_rx_fifo_empty(pio, sm);
+    bool mt = true;
+    for (int i = 0; mt && i < 1000; i++) {
+        mt = pio_sm_is_rx_fifo_empty(pio, sm);
     }
-    return (rdy ? pio->rxf[sm] : -1);
+    return (mt ? -1 : pio->rxf[sm]);
 }
 static inline int32_t _quadrature_encoder_get_count(PIO pio, uint sm) {
     _quadrature_encoder_request_count(pio, sm);
@@ -118,31 +119,44 @@ int16_t re_delta() {
 }
 
 int32_t re_tdelta() {
-    return _enc_t_last - _enc_t_prior;
+    return _enc_t_delta;
 }
 
 int32_t re_tlast() {
     return _enc_t_last;
 }
 
-void re_turn_irq_handler(uint gpio, uint32_t events) {
+int32_t re_velocity() {
+    return _enc_velocity;
+}
+
+void re_turn_handler(uint phase) {
+    if (phase % 2 == 0) {
+        // Request count on EVEN
+        _quadrature_encoder_request_count(PIO_ROTARY_BLOCK, PIO_ROTARY_SM);
+        return;
+    }
+    // Get the count on ODD
     int32_t new_value;
     // note: thanks to two's complement arithmetic delta will always
     // be correct even when new_value wraps around MAXINT / MININT
-    new_value = _quadrature_encoder_get_count(PIO_ROTARY_BLOCK, PIO_ROTARY_SM);
+    new_value = _quadrature_encoder_fetch_count(PIO_ROTARY_BLOCK, PIO_ROTARY_SM);
     // We use '-1' as a special flag to indicate that there wasn't any data available.
     if (new_value != -1) {
         _enc_delta = new_value - _enc_value;
         _enc_value = new_value;
-        _enc_t_prior = _enc_t_last;
-        _enc_t_last = now_ms();
-    }
-
-    if (_enc_delta != 0) {
-        cmt_msg_t msg;
-        cmt_msg_init(&msg, MSG_ROTARY_CHG);
-        msg.data.value16 = _enc_delta;
-        postAPPMsgDiscardable(&msg);
+        uint32_t now = now_ms();
+        _enc_t_delta = now - _enc_t_last;
+        _enc_t_last = now;
+        if (_enc_delta != 0) {
+            if (_enc_t_delta != 0) {
+                _enc_velocity = (_enc_delta * 1000) / _enc_t_delta;
+            }
+            cmt_msg_t msg;
+            cmt_msg_init(&msg, MSG_ROTARY_CHG);
+            msg.data.value16 = _enc_delta;
+            postAPPMsgDiscardable(&msg);
+        }
     }
 }
 
@@ -155,10 +169,10 @@ void re_minit() {
     // GPIO is initialized in `board.c` with the rest of the board.
     _enc_delta = 0;
     _enc_value = 0;
-    _enc_t_prior = now_ms();
-    _enc_t_last = _enc_t_prior;
+    _enc_t_delta = now_ms();
+    _enc_t_last = _enc_t_delta;
     uint offset = pio_add_program(PIO_ROTARY_BLOCK, &quadrature_encoder_program);
-    _quadrature_encoder_program_init(PIO_ROTARY_BLOCK, PIO_ROTARY_SM, offset, _PIN_rotary_ENC_AB, 0);
+    _quadrature_encoder_program_init(PIO_ROTARY_BLOCK, PIO_ROTARY_SM, offset, _PIN_rotary_ENC_AB, 20000);
 
     _initialized = true;
 }

@@ -52,6 +52,7 @@ static void _handle_switch_action(cmt_msg_t* msg);
 // Data
 // ############################################################################
 //
+int ERRORNO;    // Primarily used by the Shell and Shell Commands. Globally available error number.
 
 
 // ====================================================================
@@ -156,7 +157,8 @@ static void _handle_rotary_change(cmt_msg_t* msg) {
     int16_t rotary_delta = re_delta();
     int32_t t_last = re_tlast();
     int32_t t_delta = re_tdelta();
-    debug_printf("RE: p:%4d d:%3hd dt:%3u t:%6u  md:%3hd\n", rotary_cnt, rotary_delta, t_delta, t_last, msg->data.value16);
+    int32_t velocity = re_velocity();
+    debug_printf("RE: cnt:%4d delta:%3hd velo: %4d dt:%5u t:%8u  md:%3hd\n", rotary_cnt, rotary_delta, velocity, t_delta, t_last, msg->data.value16);
 }
 
 static void _handle_switch_action(cmt_msg_t* msg) {
@@ -166,11 +168,6 @@ static void _handle_switch_action(cmt_msg_t* msg) {
     bool pressed = msg->data.sw_action.pressed;
     bool longpress = msg->data.sw_action.longpress;
     bool repeat = msg->data.sw_action.repeat;
-
-    // ZZZ - TEMP: Use the CMD-ATTN switch to toggle the Flash-Device power...
-    if (sw == SW_ATTNCMD && pressed && !longpress && !repeat) {
-        pdo_pwr_on(!pdo_pwr_is_on());
-    }
 
     // DEBUG: Print info about the switch action.
     char* spressed = (pressed ? "Pressed" : "Released");

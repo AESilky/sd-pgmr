@@ -36,8 +36,9 @@ typedef bool (*sw_pressed_fn)(void);
 static void _handle_switch0_longpress_delay(cmt_msg_t* msg);
 static void _handle_switch1_longpress_delay(cmt_msg_t* msg);
 
+static volatile bool _sw_delay_ip[_SW_CNT] = {false, false};
 static msg_handler_fn _sw_longpress_delay[_SW_CNT] = { _handle_switch0_longpress_delay, _handle_switch1_longpress_delay };
-static bool _sw_pressed[_SW_CNT];
+static volatile bool _sw_pressed[_SW_CNT];
 static sw_pressed_fn _sw_pressed_fn[_SW_CNT] = { cmdattn_switch_pressed, rotary_switch_pressed };
 
 // Interrupt handler methods...
@@ -83,8 +84,7 @@ static void _handle_apps_started(cmt_msg_t* msg) {
     //
     re_pbsw_minit();  // Rotary Encoder Push-Button Switch module
     re_minit();       // Rotary Encoder (knob) module
-    gpio_set_irq_enabled_with_callback(IRQ_ROTARY_TURN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
-    gpio_set_irq_enabled(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled_with_callback(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
     gpio_set_irq_enabled(IRQ_CMD_ATTN_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 
     // Let the USB subsystem have some time to come up, then
@@ -101,6 +101,9 @@ static void _handle_apps_started(cmt_msg_t* msg) {
  */
 static void _handle_hwrt_housekeeping(cmt_msg_t* msg) {
     static uint cnt = 0;
+
+    // Request the rotary switch count on even times, get it on odd.
+    re_turn_handler(cnt);
 
     cnt++;
 }
@@ -133,14 +136,17 @@ static void _sw_debounce(cmt_msg_t* msg) {
 }
 
 static void _schedule_longpress_delay(switch_id_t sw, bool repeat) {
-    cmt_msg_t msg;
-    cmt_msg_init2(&msg, MSG_SW_LONGPRESS_DELAY, _sw_longpress_delay[sw]);
-    msg.data.sw_action.switch_id = sw;
-    msg.data.sw_action.pressed = true;
-    msg.data.sw_action.longpress = repeat;
-    msg.data.sw_action.repeat = repeat;
-    uint16_t delay = (repeat ? SWITCH_REPEAT_MS : SWITCH_LONGPRESS_MS);
-    schedule_msg_in_ms(delay, &msg);
+    if (!_sw_delay_ip[sw]) {
+        _sw_delay_ip[sw] = true;
+        cmt_msg_t msg;
+        cmt_msg_init2(&msg, MSG_SW_LONGPRESS_DELAY, _sw_longpress_delay[sw]);
+        msg.data.sw_action.switch_id = sw;
+        msg.data.sw_action.pressed = true;
+        msg.data.sw_action.longpress = repeat;
+        msg.data.sw_action.repeat = repeat;
+        uint16_t delay = (repeat ? SWITCH_REPEAT_MS : SWITCH_LONGPRESS_MS);
+        schedule_msg_in_ms(delay, &msg);
+    }
 }
 
 static void _handle_switch_action(cmt_msg_t* msg) {
@@ -153,6 +159,7 @@ static void _handle_switch_action(cmt_msg_t* msg) {
         // Clear any long press in progress
         scheduled_msg_cancel2(MSG_SW_LONGPRESS_DELAY, _sw_longpress_delay[sw]);
         _sw_pressed[sw] = false;
+        _sw_delay_ip[sw] = false;
     }
     else {
         _sw_pressed[sw] = true;
@@ -164,6 +171,7 @@ static void _handle_switch_action(cmt_msg_t* msg) {
 static void _handle_switch_longpress_delay(cmt_msg_t* msg) {
     // Handle the long press delay message to see if the switch is still pressed.
     switch_id_t sw = msg->data.sw_action.switch_id;
+    _sw_delay_ip[sw] = false; // No longer in-process
     bool repeat = msg->data.sw_action.repeat;
     bool still_pressed = _sw_pressed_fn[sw]();
     if (_sw_pressed[sw] && still_pressed) {
@@ -199,9 +207,6 @@ void _gpio_irq_handler(uint gpio, uint32_t events) {
         break;
     case IRQ_ROTARY_SW:
         _sw_irq_handler(SW_ROTARY, events);
-        break;
-    case IRQ_ROTARY_TURN:
-        re_turn_irq_handler(gpio, events);
         break;
     }
 }

@@ -14,8 +14,6 @@
 #define DISP_CMD_ENABLE  0  // Low signal is CMD
 #define DISP_DATA_ENABLE 1  // High signal is DATA
 
-static boptkn_t boptkn;
-
 /**
  * Set the chip select for the display.
  *
@@ -60,20 +58,9 @@ void disp_op_end() {
 }
 
 void disp_reset() {
-    boptkn = board_op_start();
-    if (boptkn == NULL) {
-        return;
-    }
-    board_op(boptkn, BDO_NONE);
-    // PD Power needs to be ON to do the reset
-    uint32_t b = gpio_get(OP_DEVICE_PWR);
-    gpio_put(OP_DEVICE_PWR, true);
-    sleep_ms(10);
-    board_op(boptkn, BDO_DISPLAY_RST);
-    sleep_ms(10);
-    board_op(boptkn, BDO_NONE);
-    gpio_put(OP_DEVICE_PWR, b); // Put the PD Power state back as it was
-    board_op_end(boptkn);
+    gpio_put(DISPLAY_RST, 0);
+    sleep_ms(8);
+    gpio_put(DISPLAY_RST, 1);
 }
 
 int disp_write(uint8_t data) {

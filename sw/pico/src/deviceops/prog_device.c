@@ -38,9 +38,9 @@
 static bool _initialized;
 
 #define MT_BYTE_VAL 0xFF
-#define PROG_DEV_BUF_SIZE (8*ONE_K)
+#define PROG_DEV_SECTOR_SIZE (4*ONE_K)
 /** @brief Image for the programmable device (512MB) */
-static uint8_t _imgbuf[PROG_DEV_BUF_SIZE];
+static uint8_t _imgbuf[PROG_DEV_SECTOR_SIZE];
 
 // ====================================================================
 // Local/Private Method Declarations
@@ -85,7 +85,7 @@ static void _handle_housekeeping(cmt_msg_t* msg) {
 // ====================================================================
 
 void _clr_device_buf() {
-    memset(_imgbuf, MT_BYTE_VAL, PROG_DEV_BUF_SIZE);
+    memset(_imgbuf, MT_BYTE_VAL, PROG_DEV_SECTOR_SIZE);
 }
 
 // ====================================================================

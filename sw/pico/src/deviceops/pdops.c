@@ -14,7 +14,7 @@
 #include "board.h"
 #include "dbus.h"
 #include "system_defs.h"
-#include "try_throw_catch.h"
+#include "debug_support.h"
 
 #include "pico/stdlib.h"
 #include "pico/types.h"
@@ -34,11 +34,19 @@ static volatile bool _initialized;
 
 static bool _op_ip;
 static boptkn_t _tkn;
+
+/** The current Power Mode */
+static progdev_pwr_mode_t _pwrmode;
 /** Holds the top 3-bits of the address and the FWR- and FRD- control bits. */
 static uint8_t _addrHctrl;
 
 // ====================================================================
 // Local/Private Method Declarations
+// ====================================================================
+
+
+// ====================================================================
+// Local/Private Method Definitions
 // ====================================================================
 
 /**
@@ -71,8 +79,14 @@ static void _op_start() {
 
 static bool _pd_pwr_chk() {
     if (!pdo_pwr_is_on()) {
-        warn_printf("PD Operations require that the Programmable Device is powered!\n");
-        return (false);
+        if (_pwrmode == PDPWR_OFF) {
+            warn_printf("PD Operations require that the Programmable Device is powered!\n");
+            return (false);
+        }
+        else {
+            // If the power is off and the mode allows, turn it on.
+            return (pdo_request_pwr_on(true));
+        }
     }
     return (true);
 }
@@ -93,9 +107,14 @@ static void _pd_rw_set(_frdwrb_t rwbits) {
     board_op(_tkn, BDO_NONE);           // This takes the Latch CLK high (clocks data to the output)
 }
 
+
+// ====================================================================
+// Public Methods
+// ====================================================================
+
 void pdo_addr_set(uint32_t addr) {
     if (!_pd_pwr_chk()) {
-//        Throw(EXCEPTION_GENERAL);
+        ERRORNO = -1;
         return;
     }
 
@@ -124,7 +143,8 @@ void pdo_addr_set(uint32_t addr) {
 
 uint8_t pdo_data_get() {
     if (!_pd_pwr_chk()) {
-        return (0);
+        ERRORNO = -1;
+        return (-1);
     }
 
     _op_start();
@@ -150,6 +170,7 @@ uint8_t pdo_data_get() {
 
 void pdo_data_set(uint8_t data) {
     if (!_pd_pwr_chk()) {
+        ERRORNO = -1;
         return;
     }
 
@@ -173,17 +194,56 @@ void pdo_data_set(uint8_t data) {
     _op_end();
 }
 
-void pdo_pwr_on(bool on) {
-    if (!on) {
-        // Set LOW to avoid back-powering circuit
-        gpio_put(OP_DATA_WR, 0);
-        gpio_put(OP_DATA_LATCH, 0);
+void pdo_pwr_mode(progdev_pwr_mode_t mode) {
+    _pwrmode = mode;
+    switch (_pwrmode) {
+        case PDPWR_OFF:
+            pdo_request_pwr_on(false);
+            break;
+        case PDPWR_ON:
+            pdo_request_pwr_on(true);
+            break;
+        case PDPWR_AUTO:
+            // Typically keep the power off
+            pdo_request_pwr_on(false);
+            break;
     }
-    gpio_put(OP_DEVICE_PWR, on);
-    if (on) {
-        gpio_put(OP_DATA_WR, 1); // Set HIGH to avoid driving the PD Data Bus
-        // Leave the DATA_LATCH, as taking it from LOW to HIGH latches data
+}
+
+progdev_pwr_mode_t pdo_pwr_mode_get() {
+    return (_pwrmode);
+}
+
+bool pdo_request_pwr_on(bool on) {
+    static bool _1st_pon;
+    if (on == pdo_pwr_is_on()) {
+        return (true);
     }
+    bool retval = false;
+    if (_pwrmode == PDPWR_AUTO || ((_pwrmode == PDPWR_ON && on) || (_pwrmode == PDPWR_OFF && !on))) {
+        if (!on) {
+            // Set LOW to avoid back-powering circuit
+            gpio_put(OP_DATA_WR, 0);
+            gpio_put(OP_DATA_LATCH, 0);
+        }
+        gpio_put(OP_DEVICE_PWR, on);
+        if (on) {
+            gpio_put(OP_DATA_WR, 1); // Set HIGH to avoid driving the PD Data Bus
+            // Leave the DATA_LATCH, as taking it from LOW to HIGH latches data
+            sleep_ms(5); // Allow the device to have power for a few ms before access
+            if (!_1st_pon) {
+                // This is our first time powering the device on.
+                _1st_pon = true;
+                // Do a single byte read, to flush garbage.
+                pdo_addr_set(0);
+                uint8_t d = pdo_data_get();
+                debug_printf("First device read: %2X\n", d);
+            }
+        }
+        retval = true;
+    }
+
+    return (retval);
 }
 
 
@@ -194,7 +254,6 @@ void pdo_minit() {
     }
     _initialized = true;
 
-    pdo_pwr_on(false);
+    pdo_pwr_mode(PDPWR_OFF);
     _addrHctrl = (~_FRW_NONE);
-    pdo_addr_set(0);
 }

@@ -18,7 +18,6 @@ extern "C" {
  *  Commands can, for example, `Throw( CMD_ARG_VALUE_EXCEPT )`
  *  There is a complete example in the header file.
  */
-#include "try_throw_catch.h"
 #define CMD_ARG_NUMBER_EXCEPT (1)
 #define CMD_ARG_VALUE_EXCEPT (2)
 #define CMD_ENV_EXCEPT (3)

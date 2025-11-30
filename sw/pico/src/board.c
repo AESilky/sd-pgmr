@@ -81,16 +81,6 @@ int board_init() {
 
     // GPIO Outputs (other than SPI, I2C, UART, and chip-selects
 
-    //  Display
-    gpio_set_function(SPI_DISPLAY_CS, GPIO_FUNC_SIO);
-    gpio_put(SPI_DISPLAY_CS, 1);
-    gpio_set_dir(SPI_DISPLAY_CS, GPIO_OUT);
-    gpio_set_drive_strength(SPI_DISPLAY_CS, GPIO_DRIVE_STRENGTH_2MA);
-    gpio_set_function(SPI_DISPLAY_CTRL, GPIO_FUNC_SIO);
-    gpio_put(SPI_DISPLAY_CTRL, 1);
-    gpio_set_dir(SPI_DISPLAY_CTRL, GPIO_OUT);
-    gpio_set_drive_strength(SPI_DISPLAY_CTRL, GPIO_DRIVE_STRENGTH_2MA);
-
     // Operation Address Bits
     gpio_set_function(OP8_BIT0, GPIO_FUNC_SIO);
     gpio_put(OP8_BIT0, 0);

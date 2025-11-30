@@ -1,8 +1,6 @@
 /**
- * @brief Application functionality.
+ * @brief Application data and structures.
  * @ingroup app
- *
- * Provide the application functionality.
  *
  * Copyright 2023-25 AESilky
  *
@@ -14,15 +12,14 @@
 extern "C" {
 #endif
 
-#include "app_t.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 /**
- * @brief Starts the APP.
+ * @brief Global Error Number value.
  * @ingroup app
- *
- * This should be called after the messaging system is up and running.
  */
-extern void start_app(void);
+extern int ERRORNO;
 
 #ifdef __cplusplus
     }

@@ -5,12 +5,15 @@ target_sources(app INTERFACE
   app.c
 )
 
+add_subdirectory(menumgr)
+
 target_include_directories(app INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
 target_link_libraries(app INTERFACE
     dskops
+    menumgr
     shell
     prog_device
     pico_stdlib

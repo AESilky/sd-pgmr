@@ -49,9 +49,9 @@ static void _delay_action(void* data) {
 // ====================================================================
 
 /**
- * @brief Handle XYZ Housekeeping tasks. This is triggered every ~16ms.
+ * @brief Handle our Housekeeping tasks. This is triggered every ~16ms.
  *
- * For reference, 625 times is 10 seconds.
+ * Triggered at 62.5Hz, so 625 times is 10 seconds.
  *
  * @param msg Nothing important in the message.
  */

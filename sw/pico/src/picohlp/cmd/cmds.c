@@ -12,8 +12,8 @@
 
 #include "picoutil.h"
 
-#include "shell/include/shell.h"
-#include "shell/cmd/cmd_t.h"
+#include "app/shell/include/shell.h"
+#include "app/shell/cmd/cmd_t.h"
 
 #include <ctype.h>
 #include <stdbool.h>

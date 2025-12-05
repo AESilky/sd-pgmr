@@ -97,6 +97,7 @@ union MSG_DATA_VALUE_ {
     uint32_t value32u;
     switch_action_data_t sw_action;
     char* str;
+    void* ptr;
     uint32_t ts_ms;
     uint64_t ts_us;
 };

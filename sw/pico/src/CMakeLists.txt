@@ -146,19 +146,9 @@ add_subdirectory(hwrt)
 add_subdirectory(picohlp)
 #
 add_subdirectory(app)
-add_subdirectory(deviceops)
 add_subdirectory(display)
 add_subdirectory(dskops)
 add_subdirectory(rotary_encoder)
-
-#
-# Modules that provide the interactive shell and commands
-set(SHELL_LIBS
-  shell
-  # Use the following if not wanting the Shell
-  #shell_stub
-)
-add_subdirectory(shell)
 
 #
 # External libraries
@@ -186,7 +176,6 @@ target_include_directories(sdpgmr SYSTEM PUBLIC
 # Link in the Modules/Libraries for the top-level
 target_link_libraries(sdpgmr PUBLIC
   ${CORE_LIBS}
-  ${SHELL_LIBS}
   ${PICO_LIBS}
   ${EXT_LIBS}
 )
@@ -214,7 +203,6 @@ target_include_directories(sdpgmr_db SYSTEM PUBLIC
 # Link in the Modules/Libraries for the top-level
 target_link_libraries(sdpgmr_db
   ${CORE_LIBS}
-  ${SHELL_LIBS}
   ${PICO_LIBS}
   ${EXT_LIBS}
 )

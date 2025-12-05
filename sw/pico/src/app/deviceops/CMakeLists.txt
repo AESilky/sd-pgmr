@@ -6,9 +6,7 @@ target_sources(prog_device INTERFACE
     pdops.c
 )
 
-add_subdirectory(
-  cmd
-)
+add_subdirectory(cmd)
 
 target_include_directories(prog_device INTERFACE
 	${CMAKE_CURRENT_LIST_DIR}/include

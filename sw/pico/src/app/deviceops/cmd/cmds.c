@@ -20,7 +20,8 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "deviceops/include/pdops.h"
+#include "../include/pdops.h"
+#include "../include/prog_device.h"
 
 #define DDRDWR_REPEAT_MS 10
 
@@ -43,9 +44,12 @@ const cmd_handler_entry_t cmds_addrtosect_entry;
 const cmd_handler_entry_t cmds_devaddr_entry;
 const cmd_handler_entry_t cmds_devaddr_n_entry;
 const cmd_handler_entry_t cmds_devdump_entry;
+const cmd_handler_entry_t cmds_devinfo_entry;
+const cmd_handler_entry_t cmds_devmt_entry;
 const cmd_handler_entry_t cmds_devpwr_entry;
 const cmd_handler_entry_t cmds_devrd_entry;
 const cmd_handler_entry_t cmds_devrd_n_entry;
+const cmd_handler_entry_t cmds_devsectmt_entry;
 const cmd_handler_entry_t cmds_devwr_entry;
 const cmd_handler_entry_t cmds_devwr_n_entry;
 
@@ -145,10 +149,36 @@ static int _exec_atos(int argc, char** argv, const char* unparsed) {
     if (!valid) {
         return (-1);
     }
+    int retval = 0;
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    if (ERRORNO < 0) {
+        shell_printferr("Unable to power on the device.\n");
+        retval = -1;
+        goto _finally;
+    }
+    const md_info_t* info = pd_info();
+    pdo_request_pwr_on(false);
+    if (!info) {
+        shell_printferr("Device not identified.\n");
+        retval = -1;
+        goto _finally;
+    }
+    uint8_t sect = pd_sect_for_addr(info, addr);
+    if (sect == PD_INVALID_SECT) {
+        shell_printferr("%u isn't a valid address for this device.\n", addr);
+        retval = -1;
+        goto _finally;
+    }
     _addr = addr;
-    _sect = addr / PD_SECTSIZE;
-    shell_printf("Addr: %05X  Sector: %hu\n", addr, _sect);
-    return (0);
+    _sect = sect;
+    shell_printf("Addr: %05X  Sector: %hu\n", addr, (uint16_t)_sect);
+
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
+    return (retval);
 }
 
 static int _exec_addr(int argc, char** argv, const char* unparsed) {
@@ -309,6 +339,104 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
         }
         shell_printf("\n");
     };
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
+    return (retval);
+}
+
+static int _exec_dinfo(int argc, char** argv, const char* unparsed) {
+    if (argc > 1) {
+        // We don't take any arguments.
+        cmd_help_display(&cmds_devinfo_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    if (ERRORNO < 0) {
+        return (ERRORNO);
+    }
+    const md_info_t* info = pd_info();
+    pdo_request_pwr_on(false);
+    if (!info) {
+        shell_printferr("Device not identified.\n");
+        return (-1);
+    }
+    uint32_t size = pd_size(info);
+    uint16_t ksize = size / ONE_K;
+    uint32_t sectsize = pd_sectsize(info);
+    uint16_t ksectsize = sectsize / ONE_K;
+    shell_printf("Device - MFG:%s DEV:%s Size: %huK Sectors:%hu x %huK\n", info->mfgs, info->devs, ksize, (uint16_t)info->sectcnt, ksectsize);
+
+    return (0);
+}
+
+static int _exec_dmt(int argc, char** argv, const char* unparsed) {
+    if (argc > 1) {
+        // We don't take any arguments.
+        cmd_help_display(&cmds_devinfo_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    int retval = 0;
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    if (ERRORNO < 0) {
+        retval = -1;
+        goto _finally;
+    }
+    const md_info_t* info = pd_info();
+    if (!info) {
+        shell_printferr("Device not identified.\n");
+        retval = -1;
+        goto _finally;
+    }
+    shell_printf("checking device...");
+    bool ismt = pd_is_empty(info);
+    const char* mods = (ismt ? "" : "not ");
+    shell_printf("\nDevice is %sempty\n", mods);
+
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
+    return (retval);
+}
+
+static int _exec_dsectmt(int argc, char** argv, const char* unparsed) {
+    if (argc != 2) {
+        // We take exactly 1 argument: data
+        cmd_help_display(&cmds_devsectmt_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    pdo_request_pwr_on(true);
+    if (ERRORNO) {
+        shell_printferr("Cannot check device.");
+        retval = -1;
+        goto _finally;
+    }
+    // Get the device info
+    const md_info_t* info = pd_info();
+    if (!info) {
+        shell_printferr("Device cannot be determined.\n");
+        retval = -1;
+        goto _finally;
+    }
+    // Get the sector number
+    bool success;
+    uint8_t sect = (uint16_t)uint_from_str(argv[1], &success);
+    if (!success || sect >= info->sectcnt) {
+        shell_printferr("Value error - '%s' is not valid. Must be 0-%hu.\n", argv[1], (uint16_t)(info->sectcnt - 1));
+        retval = -1;
+        goto _finally;
+    }
+    shell_printf("checking device...");
+    bool dmt = pd_is_sect_empty(sect);
+    const char* mods = (dmt ? "" : "not ");
+    shell_printf("\nDevice sector %hu is %sempty\n", sect, mods);
 _finally:
     // Try to turn the power off
     pdo_request_pwr_on(false);
@@ -560,6 +688,22 @@ const cmd_handler_entry_t cmds_devdump_entry = {
     "Dump device data. Optionally specify start address and length.",
 };
 
+const cmd_handler_entry_t cmds_devinfo_entry = {
+    _exec_dinfo,
+    3,
+    "pdinfo",
+    NULL,
+    "Get device information.",
+};
+
+const cmd_handler_entry_t cmds_devmt_entry = {
+    _exec_dmt,
+    5,
+    "pdisempty",
+    NULL,
+    "Check if device is empty.",
+};
+
 const cmd_handler_entry_t cmds_devpwr_entry = {
     _exec_dpwr,
     3,
@@ -584,6 +728,14 @@ const cmd_handler_entry_t cmds_devrd_n_entry = {
     "Advance the address and read device data.",
 };
 
+const cmd_handler_entry_t cmds_devsectmt_entry = {
+    _exec_dsectmt,
+    5,
+    "pdissectempty",
+    "sectno(dec)",
+    "Check if device sector is empty. 0-based sector number.",
+};
+
 const cmd_handler_entry_t cmds_devwr_entry = {
     _exec_wr,
     4,
@@ -606,9 +758,12 @@ void pdcmds_minit(void) {
     cmd_register(&cmds_devaddr_entry);
     cmd_register(&cmds_devaddr_n_entry);
     cmd_register(&cmds_devdump_entry);
+    cmd_register(&cmds_devinfo_entry);
+    cmd_register(&cmds_devmt_entry);
     cmd_register(&cmds_devpwr_entry);
     cmd_register(&cmds_devrd_entry);
     cmd_register(&cmds_devrd_n_entry);
+    cmd_register(&cmds_devsectmt_entry);
     cmd_register(&cmds_devwr_entry);
     cmd_register(&cmds_devwr_n_entry);
 }

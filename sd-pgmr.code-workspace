@@ -19,8 +19,15 @@
 			"util.h": "c",
 			"shell.h": "c",
 			"cmd_t.h": "c",
-			"setjmp.h": "c"
+			"setjmp.h": "c",
+			"malloc.h": "c",
+			"string.h": "c",
+			"stdlib.h": "c",
+			"display.h": "c"
 		},
-		"cortex-debug.variableUseNaturalFormat": true
+		"cortex-debug.variableUseNaturalFormat": false,
+		"cSpell.words": [
+			"MNUP"
+		]
 	}
 }

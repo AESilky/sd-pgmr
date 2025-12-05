@@ -20,7 +20,7 @@
 #include "pico/printf.h"
 
 #include <stdlib.h> // malloc
-#include <string.h>
+#include <string.h> // memset
 
 
 typedef struct CMD_ENTRY_LL_ {

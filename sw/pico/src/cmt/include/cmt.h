@@ -38,12 +38,6 @@ typedef struct _PROC_STATUS_ACCUM_ {
     volatile uint64_t t_msg_longest;
 } proc_status_accum_t;
 
-// Define functional names for the 'Core' message queue functions (Camel-case to help flag as macros).
-#define postHWRTMsg( pmsg )                     post_to_core0( pmsg )
-#define postHWRTMsgDiscardable( pmsg )          post_to_core0_nowait( pmsg )
-#define postAPPMsg( pmsg )                      post_to_core1( pmsg )
-#define postAPPMsgDiscardable( pmsg )           post_to_core1_nowait( pmsg )
-
 /**
  * @brief The Current/Last message processed for a core.
  *

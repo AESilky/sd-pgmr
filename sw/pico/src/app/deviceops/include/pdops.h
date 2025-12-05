@@ -19,9 +19,6 @@ extern "C" {
 
 #include <stdbool.h>
 
-/** @brief Programmable-Device Sector Size (4K) */
-#define PD_SECTSIZE (4096)
-
 /**
  * @brief Programmable-Device Power Mode: One of OFF, ON, AUTO
  * @ingroup ProgDev
@@ -68,6 +65,21 @@ extern void pdo_addr_set(uint32_t addr);
 extern uint8_t pdo_data_get();
 
 /**
+ * @brief Read a byte of data from the device, setting the address first.
+ * @ingroup ProgDev
+ *
+ * This is a combination of calls to `pdo_addr_set` and `pdo_data_get`. See those methods
+ * for descriptions.
+ *
+ * @see pdo_addr_set(uint32_t addr)
+ * @see pdo_data_get()
+ *
+ * @param addr The address to set
+ * @return uint8_t 8-bit byte from the device
+ */
+extern uint8_t pdo_data_get_from(uint32_t addr);
+
+/**
  * @brief Set the data into the output buffers for the device, then to the device.
  * @ingroup ProgDev
  *
@@ -82,6 +94,20 @@ extern uint8_t pdo_data_get();
  * @param data 8-bit data byte
  */
 extern void pdo_data_set(uint8_t data);
+
+/**
+ * @brief Combination of pdo_addr_set and pdo_data_set.
+ * @ingroup ProgDev
+ *
+ * See the individual methods for descriptions.
+ *
+ * @see pdo_addr_set(uint32_t addr)
+ * @see pdo_data_set(uing8_t data);
+ *
+ * @param addr The address to set
+ * @param data 8-bit data byte
+ */
+extern void pdo_data_set_at(uint32_t addr, uint8_t data);
 
 /**
  * @brief Get the state of the Programmable-Device Power.

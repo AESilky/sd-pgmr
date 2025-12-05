@@ -168,6 +168,19 @@ uint8_t pdo_data_get() {
     return (data);
 }
 
+uint8_t pdo_data_get_from(uint32_t addr) {
+    ERRORNO = 0;
+    pdo_addr_set(addr);
+    if (ERRORNO < 0) {
+        return (-1);
+    }
+    uint8_t v = pdo_data_get();
+    if (ERRORNO < 0) {
+        return (-1);
+    }
+    return (v);
+}
+
 void pdo_data_set(uint8_t data) {
     if (!_pd_pwr_chk()) {
         ERRORNO = -1;
@@ -192,6 +205,16 @@ void pdo_data_set(uint8_t data) {
     // Disable the data latch output
     gpio_put(OP_DATA_WR, 1);
     _op_end();
+}
+
+void pdo_data_set_at(uint32_t addr, uint8_t data) {
+    ERRORNO = 0;
+    pdo_addr_set(addr);
+    if (ERRORNO < 0) {
+        return;
+    }
+    pdo_data_set(data);
+    return;
 }
 
 void pdo_pwr_mode(progdev_pwr_mode_t mode) {
@@ -225,6 +248,10 @@ bool pdo_request_pwr_on(bool on) {
             // Set LOW to avoid back-powering circuit
             gpio_put(OP_DATA_WR, 0);
             gpio_put(OP_DATA_LATCH, 0);
+            // Set DATA to 0
+            dbus_wr(0);
+            // Set DataBus IN
+            dbus_set_in();
         }
         gpio_put(OP_DEVICE_PWR, on);
         if (on) {

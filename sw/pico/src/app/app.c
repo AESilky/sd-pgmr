@@ -40,15 +40,7 @@
 // Datatypes
 // ############################################################################
 //
-typedef struct menu_item_content_ {
-    const char* label;
-    const menu_item_t* item;
-} menu_item_content_t;
-typedef struct menu_content_ {
-    const char* title;
-    const menu_t* menu;
-    const menu_item_content_t** items;
-} menu_content_t;
+
 
 // ############################################################################
 // Function Declarations
@@ -63,11 +55,13 @@ static void _handle_rotary_change(cmt_msg_t* msg);
 static void _handle_switch_action(cmt_msg_t* msg);
 
 // Menu methods
-static const menu_item_t* _mm_get_item(const menu_t* menu, const menu_item_t* prev_item);
-static const char* _mm_get_item_lbl(const menu_t* menu, const menu_item_t* item);
-static const char* _mm_get_title(const menu_t* menu);
-static void _mm_handle_item(const menu_t* menu, const menu_item_t* item);
-static bool _mm_has_item(const menu_t* menu, const menu_item_t* prev_item);
+static const dynmenu_item_t* _dm_get_item(const dynmenu_t* menu, const dynmenu_item_t* ref_item, menu_itemreq_t reqtype);
+static const char* _dm_get_item_lbl(const dynmenu_t* menu, const dynmenu_item_t* item);
+static const char* _dm_get_title(const dynmenu_t* menu);
+static bool _dm_handle_item(const dynmenu_t* menu, const dynmenu_item_t* item);
+static bool _dm_has_item(const dynmenu_t* menu, const dynmenu_item_t* ref_item, menu_itemreq_t reqtype);
+//
+static bool _mm_handle_item(const smenu_t* menu, const smenu_item_t* item);
 
 
 // ############################################################################
@@ -76,24 +70,33 @@ static bool _mm_has_item(const menu_t* menu, const menu_item_t* prev_item);
 //
 int ERRORNO;    // Primarily used by the Shell and Shell Commands. Globally available error number.
 
-static const menu_item_t _item1 = { .get_label = _mm_get_item_lbl, .handler = _mm_handle_item, .data = (void*)0 };
-static const menu_item_t _item2 = { .get_label = _mm_get_item_lbl, .handler = _mm_handle_item, .data = (void*)1 };
-static const menu_item_t _item3 = { .get_label = _mm_get_item_lbl, .handler = _mm_handle_item, .data = (void*)2 };
-static const menu_item_t _item4 = { .get_label = _mm_get_item_lbl, .handler = _mm_handle_item, .data = (void*)3 };
-static const menu_item_t _item5 = { .get_label = _mm_get_item_lbl, .handler = _mm_handle_item, .data = (void*)4 };
-static const menu_item_t _item6 = { .get_label = _mm_get_item_lbl, .handler = _mm_handle_item, .data = (void*)5 };
-static const menu_item_t _item7 = { .get_label = _mm_get_item_lbl, .handler = _mm_handle_item, .data = (void*)6 };
-static const menu_item_content_t _mm_item1 = { .label = "Item 1", .item = &_item1 };
-static const menu_item_content_t _mm_item2 = { .label = "Item 2", .item = &_item2 };
-static const menu_item_content_t _mm_item3 = { .label = "Item 3", .item = &_item3 };
-static const menu_item_content_t _mm_item4 = { .label = "Item 4", .item = &_item4 };
-static const menu_item_content_t _mm_item5 = { .label = "Item 5", .item = &_item5 };
-static const menu_item_content_t _mm_item6 = { .label = "Item 6", .item = &_item6 };
-static const menu_item_content_t _mm_item7 = { .label = "Item 7", .item = &_item7 };
-static const menu_item_content_t* _mm_items[] = {&_mm_item1, &_mm_item2, &_mm_item3, &_mm_item4, &_mm_item5, &_mm_item6, &_mm_item7, NULL};
-extern const menu_t _main_menu;
-static menu_content_t _main_menu_c = { .title = "Main Menu", .items = _mm_items, .menu = &_main_menu};
-const menu_t _main_menu = {.get_title = _mm_get_title, .get_item = _mm_get_item, .has_item = _mm_has_item, .data = (void*)&_main_menu_c};
+// Main Menu (static menu)
+static const smenu_item_t _mm_item1 = {.label = "Device", .handler = _mm_handle_item, .data = (void*)0 };
+static const smenu_item_t _mm_item2 = { .label = "File", .handler = _mm_handle_item, .data = (void*)1 };
+static const smenu_item_t _mm_item3 = { .label = "Host", .handler = _mm_handle_item, .data = (void*)2 };
+static const smenu_item_t _mm_item4 = { .label = "About", .handler = _mm_handle_item, .data = (void*)3 };
+static const smenu_item_t* _mm_items[] = {&_mm_item1, &_mm_item2, &_mm_item3, &_mm_item4, NULL };
+static const smenu_t _main_menu = {.type = MENU_STATIC, .title = "Main Menu", .items = _mm_items, .data = NULL };
+
+// Dynamic menu
+static const dynmenu_item_t _ditem1 = { .get_label = _dm_get_item_lbl, .handler = _dm_handle_item, .data = (void*)0 };
+static const dynmenu_item_t _ditem2 = { .get_label = _dm_get_item_lbl, .handler = _dm_handle_item, .data = (void*)1 };
+static const dynmenu_item_t _ditem3 = { .get_label = _dm_get_item_lbl, .handler = _dm_handle_item, .data = (void*)2 };
+static const dynmenu_item_t _ditem4 = { .get_label = _dm_get_item_lbl, .handler = _dm_handle_item, .data = (void*)3 };
+static const dynmenu_item_t _ditem5 = { .get_label = _dm_get_item_lbl, .handler = _dm_handle_item, .data = (void*)4 };
+static const dynmenu_item_t _ditem6 = { .get_label = _dm_get_item_lbl, .handler = _dm_handle_item, .data = (void*)5 };
+static const dynmenu_item_t _ditem7 = { .get_label = _dm_get_item_lbl, .handler = _dm_handle_item, .data = (void*)6 };
+static const dynmenu_item_content_t _dm_item1 = { .label = "Item 1", .item = &_ditem1 };
+static const dynmenu_item_content_t _dm_item2 = { .label = "Item 2", .item = &_ditem2 };
+static const dynmenu_item_content_t _dm_item3 = { .label = "Item 3", .item = &_ditem3 };
+static const dynmenu_item_content_t _dm_item4 = { .label = "Item 4", .item = &_ditem4 };
+static const dynmenu_item_content_t _dm_item5 = { .label = "Item 5", .item = &_ditem5 };
+static const dynmenu_item_content_t _dm_item6 = { .label = "Item 6", .item = &_ditem6 };
+static const dynmenu_item_content_t _dm_item7 = { .label = "Item 7", .item = &_ditem7 };
+static const dynmenu_item_content_t* _dm_items[] = {&_dm_item1, &_dm_item2, &_dm_item3, &_dm_item4, &_dm_item5, &_dm_item6, &_dm_item7, NULL};
+static const dynmenu_t  _dynamic_menu;
+static dynmenu_content_t  _dynamic_menu_c = { .title = "Dynamic Menu", .items = _dm_items, .menu = & _dynamic_menu};
+static const dynmenu_t  _dynamic_menu = {.type = MENU_DYNAMIC, .get_title = _dm_get_title, .get_item = _dm_get_item, .has_item = _dm_has_item, .data = (void*)& _dynamic_menu_c};
 
 // ====================================================================
 // Interrupt (irq) handler functions
@@ -124,8 +127,7 @@ static void _clear_and_enable_input(void* data) {
     // Enable the user input controls...
     //
     // Display the Main Menu
-    menu_main_set(&_main_menu);
-    menu_enter(&_main_menu);
+    smenu_enter(& _main_menu);
 
     // Try to mount the SD Card and display the top level files/directories
     // FRESULT fr = dsk_mount_sd();
@@ -229,10 +231,10 @@ static void _handle_switch_action(cmt_msg_t* msg) {
 // Internal Functions
 // ############################################################################
 //
-static const menu_item_t* _mm_get_item(const menu_t* menu, const menu_item_t* prev_item) {
-    const menu_content_t* mc = (menu_content_t*)menu->data;
-    int piid = (prev_item ? (int)(prev_item->data) : -1);
-    const menu_item_content_t* mic = (menu_item_content_t*)mc->items[piid+1];
+static const dynmenu_item_t* _dm_get_item(const dynmenu_t* menu, const dynmenu_item_t* ref_item, menu_itemreq_t reqtype) {
+    const dynmenu_content_t* mc = (dynmenu_content_t*)menu->data;
+    int piid = (ref_item ? (int)(ref_item->data) : -1);
+    const dynmenu_item_content_t* mic = (dynmenu_item_content_t*)mc->items[piid+1];
     if (!mic) {
         // Previous is the last item
         return (NULL);
@@ -240,26 +242,35 @@ static const menu_item_t* _mm_get_item(const menu_t* menu, const menu_item_t* pr
     return (mic->item);
 }
 
-static const char* _mm_get_item_lbl(const menu_t* menu, const menu_item_t* item) {
-    menu_content_t* mc = (menu_content_t*)menu->data;
-    menu_item_content_t* mic = (menu_item_content_t*)mc->items[(int)(item->data)];
+static const char* _dm_get_item_lbl(const dynmenu_t* menu, const dynmenu_item_t* item) {
+    dynmenu_content_t* mc = (dynmenu_content_t*)menu->data;
+    dynmenu_item_content_t* mic = (dynmenu_item_content_t*)mc->items[(int)(item->data)];
     return (mic->label);
 }
 
-static const char* _mm_get_title(const menu_t* menu) {
-    menu_content_t* mc = (menu_content_t*)menu->data;
+static const char* _dm_get_title(const dynmenu_t* menu) {
+    dynmenu_content_t* mc = (dynmenu_content_t*)menu->data;
     return (mc->title);
 }
 
-static void _mm_handle_item(const menu_t* menu, const menu_item_t* item) {
+static bool _dm_handle_item(const dynmenu_t* menu, const dynmenu_item_t* item) {
     const char* title = menu->get_title(menu);
     const char* label = item->get_label(menu, item);
     int item_num = (int)item->data;
     info_printf("%s item '%s' (%d) selected.\n", title, label, item_num);
+    return (true);
 }
 
-static bool _mm_has_item(const menu_t* menu, const menu_item_t* prev_item) {
-    return (_mm_get_item(menu, prev_item) != NULL);
+static bool _dm_has_item(const dynmenu_t* menu, const dynmenu_item_t* ref_item, menu_itemreq_t reqtype) {
+    return (_dm_get_item(menu, ref_item, reqtype) != NULL);
+}
+
+static bool _mm_handle_item(const smenu_t* menu, const smenu_item_t* item) {
+    const char* title = menu->title;
+    const char* label = item->label;
+    int item_num = (int)item->data;
+    info_printf("%s item '%s' (%d) selected.\n", title, label, item_num);
+    return (true);
 }
 
 static void _show_psa(proc_status_accum_t* psa, int corenum) {

@@ -13,7 +13,7 @@
 #include "term.h"
 #include "include/util.h"
 
-#include "shell/cmd/cmd_t.h"
+#include "cmd/cmd_t.h"
 #include "dbus/cmd/cmds.h"
 #include "debugging/cmd/cmds.h"
 #include "deviceops/cmd/cmds.h"

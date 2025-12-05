@@ -16,9 +16,11 @@ extern "C" {
 #include "menumgr_t.h"
 
 
-extern void menu_enter(const menu_t* menu);
+extern void dynmenu_enter(const dynmenu_t* menu);
 
-extern void menu_main_set(const menu_t* menu);
+extern void menu_display_current();
+
+extern void smenu_enter(const smenu_t* menu);
 
 /**
  * @brief Initialize the module. Must be called once/only-once before module use.

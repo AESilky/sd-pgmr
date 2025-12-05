@@ -25,6 +25,9 @@
 			"stdlib.h": "c",
 			"display.h": "c"
 		},
-		"cortex-debug.variableUseNaturalFormat": true
+		"cortex-debug.variableUseNaturalFormat": false,
+		"cSpell.words": [
+			"MNUP"
+		]
 	}
 }

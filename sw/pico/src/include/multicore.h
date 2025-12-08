@@ -70,6 +70,19 @@ extern void get_core1_msg_blocking(cmt_msg_t* msg);
 extern bool get_core1_msg_nowait(cmt_msg_t* msg);
 
 /**
+ * @brief Run a message handler w/msg on Core-0 from Core-1, waiting for completion.
+ * @ingroup multi-core
+ *
+ * This runs a message handler on Core-0 for the things that must be run on Core-0 (for example,
+ * some things that are initialized in Core-0 and use locks must be accessed from Core-0). This
+ * uses the intercore fifo to send the msg pointer to Core-0, where it is handled. While it is being
+ * handled, the code on Core-1 making the call is held until the routine running on Core-0 returns.
+ *
+ * @param msg Pointer to a message that has been initialized with a handler function to use.
+ */
+extern void runon_core0(const cmt_msg_t* msg);
+
+/**
  * @brief Start the Core 1 functionality.
  * @ingroup multi_core
  *

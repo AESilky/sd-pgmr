@@ -76,6 +76,15 @@ typedef struct {
 //    STA_PROTECT = 0x04 /* Write protected */
 //};
 
+/** Represents the different SD/MMC card types  */
+// Types
+#define SDCARD_NONE 0  /**< No card is present */
+#define SDCARD_V1 1    /**< v1.x Standard Capacity */
+#define SDCARD_V2 2    /**< v2.x Standard capacity SD card */
+#define SDCARD_V2HC 3  /**< v2.x High capacity SD card */
+#define CARD_UNKNOWN 4 /**< Unknown or unsupported card */
+
+
 bool sd_init_driver();
 int sd_init(sd_card_t *pSD);
 int sd_write_blocks(sd_card_t *pSD, const uint8_t *buffer,

@@ -52,9 +52,8 @@ static spi_t spis[] = {  // One for each SPI.
         .set_drive_strength = true,
         .mosi_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,    // 2 devices on this line
         .sck_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,     // 2 devices on this line
-
-        //.baud_rate = 1000 * 1000, // Very conservative. Probably fine given the small amount of data being used.
-        .baud_rate = 2200 * 1000,   // 2.2Mhz. The limitation here is SPI slew rate.
+        .initSPI = false,
+        .baud_rate = SPI_SD_DISP_SPEED,   // See system_def.h.
 
         .dma_isr = spi_dma_isr,
         .initialized = false,
@@ -68,7 +67,7 @@ static sd_card_t sd_cards[] = {  // One for each SD card
         .spi = &spis[0],                // Pointer to the SPI driving this card
         .ss_gpio = SPI_SD_CS,           // The SPI slave select GPIO for this SD card
         .set_drive_strength = false,    // Say 'false' because GPIO is setup at the system level
-        .ss_gpio_drive_strength = GPIO_DRIVE_STRENGTH_2MA,
+        .ss_gpio_drive_strength = GPIO_DRIVE_STRENGTH_4MA,
         // .card_detect_gpio = 22,
         // .card_detected_true = -1,    // What the GPIO read returns when a card is in
         //                              // Use -1 if there is no card detect

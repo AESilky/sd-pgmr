@@ -15,6 +15,7 @@
 extern "C" {
 #endif
 
+#include "ff.h"
 #include "hwrt_t.h"
 
 #include <stdbool.h>
@@ -96,6 +97,7 @@ union MSG_DATA_VALUE_ {
     int32_t status;
     uint32_t value32u;
     switch_action_data_t sw_action;
+    FRESULT fr;
     char* str;
     void* ptr;
     uint32_t ts_ms;

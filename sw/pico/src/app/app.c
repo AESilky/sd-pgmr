@@ -128,45 +128,6 @@ static void _clear_and_enable_input(void* data) {
     //
     // Display the Main Menu
     smenu_enter(& _main_menu);
-
-    // Try to mount the SD Card and display the top level files/directories
-    // FRESULT fr = dsk_mount_sd();
-    // if (fr != FR_OK) {
-    //     error_printf("Cannot mount SD  FR: %d - %s\n", fr, FRESULT_str(fr));
-    //     return;
-    // }
-    // DIR dir;
-    // FILINFO finfo;
-    // // Open the root dir
-    // char* dirpath = "/";
-    // fr = f_opendir(&dir, dirpath);
-    // if (fr != FR_OK) {
-    //     error_printf("Cannon open dir: '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
-    //     return;
-    // }
-    // // Get the first file
-    // fr = f_findfirst(&dir, &finfo, dirpath, "*");
-    // if (fr != FR_OK) {
-    //     error_printf("Cannon read dir (ff): '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
-    //     return;
-    // }
-    // if (finfo.fattrib & AM_DIR) {
-    //     strcat((char*)&finfo.fname, "/");
-    // }
-    // display_string(disprow++, 0, finfo.fname, false, false, Paint);
-    // // Get the rest...
-    // do {
-    //     fr = f_findnext(&dir, &finfo);
-    //     if (fr != FR_OK) {
-    //         error_printf("Cannot read dir (nf): '%s'  FR: %d - %s\n", dirpath, fr, FRESULT_str(fr));
-    //         return;
-    //     }
-    //     if (finfo.fattrib & AM_DIR) {
-    //         strcat((char*)&finfo.fname, "/");
-    //     }
-    //     display_string(disprow++, 0, finfo.fname, false, false, Paint);
-    // }
-    // while (disprow < display_info().rows);
 }
 
 static void _display_proc_status(void* data) {
@@ -316,10 +277,6 @@ static void _minit(void) {
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
     cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_app_housekeeping);
 
-
-    // Initialize the display
-    display_minit(true); // Initialize, and invert the display (as it is mounted upside down)
-
     // Initialize the Menus and Menu Manager
     menumgr_minit();
 }
@@ -331,7 +288,8 @@ void start_app(void) {
     // Setup the screen.
     display_clear(Paint);
     display_string(0, 1, "SilkyDESIGN", false, false, Paint);
-    display_string(1, 2, "Programmer", false, false, Paint);
+    display_string(1, 4, "Flash", false, false, Paint);
+    display_string(2, 2, "Programmer", false, false, Paint);
     display_string(4, 3, "\0012023-25", false, false, Paint);
     display_string(5, 3, "AESilky", false, false, Paint);
     //

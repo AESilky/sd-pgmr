@@ -26,7 +26,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SHARED_PRINT_BUF_SIZE 256
+#define SHARED_PRINT_BUF_SIZE 1024
 extern char shared_print_buf[SHARED_PRINT_BUF_SIZE];
 
 extern const uint LED_PIN;

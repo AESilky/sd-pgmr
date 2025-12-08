@@ -15,6 +15,27 @@ extern "C" {
 
 extern volatile uint16_t debugging_flags;
 
+#ifdef DEBUG_TRACE_ENABLE
+extern void _debug_tpf(const char* format, ...) __attribute__((format(_printf_, 1, 2)));
+extern void _debug_trace(const char* str);
+extern void _debug_trace_init();
+#define debug_tprintf _debug_tpf
+static inline void debug_trace(const char* str) {
+    _debug_trace(str);
+}
+static inline void debug_trace_init() {
+    _debug_trace_init();
+}
+#define DT_ENTER() {_debug_trace(">>>"); _debug_trace(__FUNCTION__); _debug_trace("\n");}
+#define DT_EXIT() {_debug_trace("<<<"); _debug_trace(__FUNCTION__); _debug_trace("\n");}
+#else
+#define debug_tprintf (0)
+static inline void debug_trace_init() {}
+static inline void debug_trace(const char* str) {}
+#define DT_ENTER() (0)
+#define DT_EXIT() (0)
+#endif
+
 typedef enum DEBUG_INIT_MODE_ {
     DIM_BOOT,                /* Init STDIO on the UART, minimally init input switch, check sw state for enable. */
     DIM_STDIO_TO_USB,           /* Move STDIO to the USB and leave UART0 configured as a UART. */
@@ -74,13 +95,6 @@ extern bool debug_mode_enable(bool debug);
  * This is an interface definition. It must be implemented in some module within the project.
  */
 extern void debug_sw_init();
-
-/**
- * @brief Initialize the GPIO involved with the UART used for initial debug output.
- *
- * This is an interface definition. It must be implemented in some module within the project.
- */
-extern void debug_uart_init();
 
 /**
  * @brief Get the 'pressed' state of the debug switch.

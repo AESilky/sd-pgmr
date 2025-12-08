@@ -142,6 +142,40 @@ bool post_to_core1_nowait(const cmt_msg_t* msg) {
     return (posted);
 }
 
+void runon_core0(const cmt_msg_t* msg) {
+    uint8_t core_num = (uint8_t)get_core_num();
+    // These checks are done separately, just to make debugging easier.
+    if (core_num != 1) {
+        const char* em = "runon_core0 not called from core1";
+        debug_trace(em);
+        board_panic(em);
+    }
+    if (!msg->hdlr) {
+        const char* em = "runon_core0 no handler in msg";
+        debug_trace(em);
+        board_panic(em);
+    }
+    if (!multicore_fifo_wready()) {
+        const char* em = "runon_core0 not multicore_fifo_wready";
+        debug_trace(em);
+        board_panic(em);
+    }
+    if (multicore_fifo_rvalid()) {
+        const char* em = "runon_core0 multicore_fifo_rvalid (data already in fifo)";
+        debug_trace(em);
+        board_panic(em);
+    }
+    // All the checks passed. Post the message
+    multicore_fifo_push_blocking_inline((uint32_t)msg);
+    // Now, block on reading the core1 fifo
+    const cmt_msg_t* msgR = (const cmt_msg_t *)multicore_fifo_pop_blocking_inline();
+    if (msgR != msg) {
+        const char* em = "runon_core0 return value wasn't the original message";
+        debug_trace(em);
+        board_panic(em);
+    }
+}
+
 void start_core1() {
     // Start up the Core 1 main.
     //
@@ -162,6 +196,7 @@ void multicore_minit(bool no_qadd_panic) {
     _no_qadd_panic = no_qadd_panic;
     _c0_reqmsg_post_errs = 0;
     _c1_reqmsg_post_errs = 0;
+    multicore_fifo_drain();
     queue_init(&_core0_queue, sizeof(cmt_msg_t), CORE0_QUEUE_NP_ENTRIES_MAX);
     queue_init(&_core1_queue, sizeof(cmt_msg_t), CORE1_QUEUE_NP_ENTRIES_MAX);
 }

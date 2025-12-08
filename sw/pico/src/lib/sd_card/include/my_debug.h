@@ -13,6 +13,7 @@ specific language governing permissions and limitations under the License.
 */
 #pragma once
 
+#include "debug_support.h"
 #include <stdio.h>
 
 #ifdef __cplusplus
@@ -30,7 +31,7 @@ extern "C" {
 
 
 //#if defined(DEBUG) && !defined(NDEBUG)
-#define DBG_PRINTF my_printf
+#define DBG_PRINTF debug_tprintf
 //#else
 //#define DBG_PRINTF(fmt, args...) /* Don't do anything in release builds*/
 //#endif

@@ -70,12 +70,13 @@ add_compile_definitions(
   PICO_USE_MALLOC_MUTEX
   PICO_QUEUE_MAX_LEVEL
   PICO_USE_STACK_GUARDS
-  PICO_STACK_SIZE=2048
-  PICO_CORE1_STACK_SIZE=2048
-  # PICO_DEBUG_MALLOC
+  PICO_STACK_SIZE=4096
+  PICO_CORE1_STACK_SIZE=4096
+  #PICO_DEBUG_MALLOC
   PICO_MAX_SHARED_IRQ_HANDLERS=6u
   PICO_STDIO_USB_CONNECTION_WITHOUT_DTR
   PICO_STDIO_USB_SUPPORT_CHARS_AVAILABLE_CALLBACK
+  DEBUG_TRACE_ENABLE
 )
 
 # Initialize the SDK
@@ -179,7 +180,7 @@ target_link_libraries(sdpgmr PUBLIC
   ${PICO_LIBS}
   ${EXT_LIBS}
 )
-#pico_set_linker_script(sdpgmr ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
+pico_set_linker_script(sdpgmr ${CMAKE_SOURCE_DIR}/memmap_2040_cstm.ld)
 pico_add_extra_outputs(sdpgmr)
 
 
@@ -206,5 +207,5 @@ target_link_libraries(sdpgmr_db
   ${PICO_LIBS}
   ${EXT_LIBS}
 )
-#pico_set_linker_script(sdpgmr_db ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
+pico_set_linker_script(sdpgmr_db ${CMAKE_SOURCE_DIR}/memmap_2040_cstm.ld)
 pico_add_extra_outputs(sdpgmr_db)

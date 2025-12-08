@@ -20,6 +20,7 @@ target_link_libraries(shell INTERFACE
     # Modules that provide commands
     dbus_cmd
     debug_cmd
+    disk_cmd
     pico_cmd
     prog_device_cmd
     # Pico Modules/Libraries used

@@ -47,7 +47,8 @@ extern "C" {
 #define SPI_SD_CS               GP5
 #define SPI_DISPLAY_CS          GP6
 #define SPI_DISPLAY_CTRL        GP7
-#define SPI_SD_DISP_SPEED      (2200 * 1000)    // SPI at 2.2MHz
+#define SPI_SLOW_SPEED         (50 * 1000)      // Very slow speed for init ops
+#define SPI_SD_DISP_SPEED      (800 * 1000)     // SPI at 800KHz
 #define SPI_CS_ENABLE           0               // Chip Select is active LOW
 #define SPI_CS_DISABLE          1               // Chip Select is active LOW
 

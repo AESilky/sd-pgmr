@@ -184,8 +184,8 @@ specific language governing permissions and limitations under the License.
 static bool crc_on = true;
 #endif
 
-#define TRACE_PRINTF(fmt, args...)
-//#define TRACE_PRINTF printf
+//#define TRACE_PRINTF(fmt, args...)
+#define TRACE_PRINTF DBG_PRINTF
 
 #define TRC_PR_ADD(fmt, args...)
 //#define TRC_PR_ADD printf
@@ -198,6 +198,9 @@ static bool crc_on = true;
         fflush(stdout);              \
     }
 */
+
+#define SD_COMMAND_TIMEOUT 2000 /*!< Timeout in ms for response */
+#define SD_PRESENT_TIMEOUT 5    /* Timeout in ms for detecting card */
 
 /* Control Tokens   */
 #define SPI_DATA_RESPONSE_MASK (0x1F)
@@ -218,14 +221,6 @@ static bool crc_on = true;
 // SPI Slave Select
 #define SSEL_ACTIVE (0)
 #define SSEL_INACTIVE (1)
-
-/** Represents the different SD/MMC card types  */
-// Types
-#define SDCARD_NONE 0  /**< No card is present */
-#define SDCARD_V1 1    /**< v1.x Standard Capacity */
-#define SDCARD_V2 2    /**< v2.x Standard capacity SD card */
-#define SDCARD_V2HC 3  /**< v2.x High capacity SD card */
-#define CARD_UNKNOWN 4 /**< Unknown or unsupported card */
 
 // Only HC block size is supported. Making this a static constant reduces code
 // size.
@@ -383,7 +378,7 @@ static void sd_release(sd_card_t *pSD) {
     sd_spi_release(pSD);
 }
 
-#if 0
+#if DEBUG_TRACE_ENABLE
 static const char *cmd2str(const cmdSupported cmd) {
     switch (cmd) {
         default:
@@ -446,8 +441,6 @@ static const char *cmd2str(const cmdSupported cmd) {
     }
 }
 #endif
-
-#define SD_COMMAND_TIMEOUT 2000 /*!< Timeout in ms for response */
 
 static int sd_cmd(sd_card_t *pSD, const cmdSupported cmd, uint32_t arg,
                   bool isAcmd, uint32_t *resp) {
@@ -613,21 +606,25 @@ static int sd_cmd(sd_card_t *pSD, const cmdSupported cmd, uint32_t arg,
 /* Return non-zero if the SD-card is present. */
 bool sd_card_detect(sd_card_t *pSD) {
     TRACE_PRINTF("> %s\r\n", __FUNCTION__);
+    bool present = false;
     if (!pSD->use_card_detect) {
-        pSD->m_Status &= ~STA_NODISK;
-        return true;
+        // See if a card responds
+        present = sd_wait_ready(pSD, SD_PRESENT_TIMEOUT);
     }
-    /*!< Check GPIO to detect SD */
-    if (gpio_get(pSD->card_detect_gpio) == pSD->card_detected_true) {
+    else {
+        /*!< Check GPIO to detect SD */
+        present = (gpio_get(pSD->card_detect_gpio) == pSD->card_detected_true);
+    }
+    if (present) {
         // The socket is now occupied
         pSD->m_Status &= ~STA_NODISK;
-        TRACE_PRINTF("SD card detected!\r\n");
+        TRACE_PRINTF("SD card detected\r\n");
         return true;
     } else {
         // The socket is now empty
         pSD->m_Status |= (STA_NODISK | STA_NOINIT);
         pSD->card_type = SDCARD_NONE;
-        printf("No SD card detected!\r\n");
+        TRACE_PRINTF("No SD card detected!\r\n");
         return false;
     }
 }

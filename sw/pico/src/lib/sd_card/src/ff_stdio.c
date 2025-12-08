@@ -24,8 +24,8 @@ specific language governing permissions and limitations under the License.
 #include "f_util.h"
 #include "ff_stdio.h"
 
-#define TRACE_PRINTF(fmt, args...) {}
-//#define TRACE_PRINTF printf
+//#define TRACE_PRINTF(fmt, args...) {}
+#define TRACE_PRINTF DBG_PRINTF
 
 static BYTE posix2mode(const char *pcMode) {
     if (0 == strcmp("r", pcMode)) return FA_READ;

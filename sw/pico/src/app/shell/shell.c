@@ -17,6 +17,7 @@
 #include "dbus/cmd/cmds.h"
 #include "debugging/cmd/cmds.h"
 #include "deviceops/cmd/cmds.h"
+#include "dskops/cmd/cmds.h"
 #include "picohlp/cmd/cmds.h"
 
 #include "hardware/rtc.h"
@@ -502,7 +503,7 @@ void shell_puts(char* str) {
         putchar('\n');
         _wraptext_on = false;
     }
-    printf("%s", str);
+    puts(str);
 }
 
 void shell_register_control_char_handler(char c, shell_control_char_handler handler_fn) {
@@ -567,6 +568,7 @@ void shell_start() {
     //
     dbcmds_minit();
     dbuscmds_minit();   // Data Bus shell commands
+    diskcmds_minit();   // Disk (SD Card) commands
     pdcmds_minit();     // Programmable Device (Flash) shell commands
     picocmds_minit();   // Pico Util/Control shell commands
 

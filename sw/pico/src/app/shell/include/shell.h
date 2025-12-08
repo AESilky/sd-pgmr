@@ -35,18 +35,6 @@ extern "C" {
 #define shell_HEADER_COLOR_BG TERM_CHR_COLOR_BLUE
 #define shell_HEADER_INFO_LINE 1
 
-// Current sender line (at the top)
-#define shell_SENDER_COLOR_FG TERM_CHR_COLOR_BLUE
-#define shell_SENDER_COLOR_BG TERM_CHR_COLOR_BR_YELLOW
-#define shell_SENDER_LINE (2)
-
-// Station list
-#define shell_STATION_LIST_COLOR_FG TERM_CHR_COLOR_BR_MAGENTA
-#define shell_STATION_LIST_BOX_COLOR_FG TERM_CHR_COLOR_MAGENTA
-#define shell_STATION_LIST_COLOR_BG TERM_CHR_COLOR_BLACK
-#define shell_STATIONS_PER_LINE (3)
-#define shell_STATION_LIST_LAST_LINE (shell_LINES - 1)
-
 // Bottom status
 #define shell_STATUS_COLOR_FG TERM_CHR_COLOR_BR_YELLOW
 #define shell_STATUS_COLOR_BG TERM_CHR_COLOR_BLUE

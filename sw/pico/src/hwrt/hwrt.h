@@ -18,8 +18,8 @@ extern "C" {
 #define HWRT_CORE_NUM 0
 
 /**
- * @brief The Hardware Runtime 0 and 1 define a `core1_main` which is run
- * by the `start_core1` function. That controls the Board (0 or 1) high-level
+ * @brief The Hardware Runtime defines a `core1_main` which is run
+ * by the `start_core1` function. That controls the Board's high-level
  * functionality.
  */
 extern void core1_main(void);

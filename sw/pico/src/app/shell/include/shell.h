@@ -227,6 +227,9 @@ extern void shell_putc(uint8_t c);
  * @ingroup ui
  *
  * If code is displaying, this will print a newline and then the string.
+ * Unlike the STDIO `puts`, this does not add a newline to the string. This is
+ * simply a more efficient `shell_printf` for use when there isn't any
+ * formatting to be applied (just plain strings).
  *
  * @param str The string to print.
  */

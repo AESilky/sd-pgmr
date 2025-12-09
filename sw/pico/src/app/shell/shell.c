@@ -503,7 +503,9 @@ void shell_puts(char* str) {
         putchar('\n');
         _wraptext_on = false;
     }
-    puts(str);
+    int len = (int)strlen(str);
+    stdio_put_string(str, len, false, true);
+    stdio_flush();
 }
 
 void shell_register_control_char_handler(char c, shell_control_char_handler handler_fn) {

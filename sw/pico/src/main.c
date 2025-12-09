@@ -55,7 +55,7 @@ int main() {
 
     led_on_off(say_hi);
 
-    sleep_ms(800);
+    sleep_ms(100);
 
     // Initialize the multicore subsystem
     multicore_minit(debug_mode_enabled());
@@ -63,17 +63,15 @@ int main() {
     // Initialize the Cooperative Multi-Tasking subsystem
     cmt_minit();
 
-    // Starting Core-1 will run the `core1_main` which is defined for the appropriate
-    // Board-0 or Board-1 functionality.
-    start_core1();
-
     // Launch the Hardware Runtime (core-0 (endless) Message Dispatching Loop).
     // The HWRT starts the appropriate secondary operations (core-1 message loop)
     // (!!! THIS NEVER RETURNS !!!)
     start_hwrt();
 
     // How did we get here?!
-    error_printf("SDPGMR.main - Somehow we are out of our endless message loop in `main()`!!!");
+    const char* errmsg = "SDPGMR.main - Somehow we are out of our endless message loop in `main()`!!!";
+    debug_trace(errmsg);
+    error_printf(errmsg);
     // ZZZ Reboot!!!
     return 0;
 }

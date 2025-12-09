@@ -81,4 +81,6 @@ void xyz_minit() {
     if (_initialized) {
         board_panic("!!! xyz_minit: Called more than once !!!");
     }
+    _initialized = true;
+
 }

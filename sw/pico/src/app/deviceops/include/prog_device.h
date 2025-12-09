@@ -30,6 +30,22 @@ extern "C" {
 #define PD_INVALID_SECT (0xFF)
 
 /**
+ * @brief Status of Programmable Device Operations.
+ * @ingroup device
+ */
+typedef enum pd_op_status_ {
+    PD_OP_OK = 0,
+    PD_DEV_NOSUP,       // Device not supported
+    PD_ERASE_FAIL,
+    PD_NO_DEVICE,
+    PD_NOT_READY,
+    PD_NOT_IDENTIFIED,
+    PD_NOT_ERASED,
+    PD_ADDR_INVALID,
+    PD_PROG_FAILED,
+} pd_op_status_t;
+
+/**
  * @brief Information about a programmable device.
  * @ingroup device
  */
@@ -42,7 +58,55 @@ typedef struct mfg_device_info_s_ {
     const char* devs;   // Device Name (string)
 } md_info_t;
 
+/**
+ * @brief Function prototype for a progress status handler.
+ * @ingroup device
+ *
+ * @param v The status value. What it is depends on what is providing the status.
+ */
+typedef void (*progstat_handler_fn)(uint32_t v);
+
+
+// //////////////////////////////////////////////////////////////////////////
+// /// Inline Function forward declarations
+// //////////////////////////////////////////////////////////////////////////
+
 static inline uint32_t pd_sectsize(const md_info_t* info);
+
+
+// //////////////////////////////////////////////////////////////////////////
+// /// Regular Function declarations
+// //////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief The maximum valid address for the device.
+ * @ingroup device
+ *
+ * @param info md_info pointer for the device.
+ * @return uint32_t
+ */
+static inline uint32_t pd_addrmax(const md_info_t* info) {
+    return ((1 << (info->abm + 1)) - 1);
+}
+
+/**
+ * @brief Erase device.
+ * @ingroup device
+ *
+ * @param info md_info pointer for the device.
+ * @return pd_op_status_t Operation status
+ */
+extern pd_op_status_t pd_erase_device(const md_info_t* info);
+
+/**
+ * @brief Erase sector.
+ * @ingroup device
+ *
+ * @param info md_info pointer for the device.
+ * @param sect The sector number (0 - (sectcnt - 1))
+ * @return pd_op_status_t Operation status
+ */
+extern pd_op_status_t pd_erase_sect(const md_info_t* info, uint8_t sect);
 
 /**
  * @brief Get the info for the current programmable device.
@@ -56,10 +120,13 @@ extern const md_info_t* pd_info();
  * @brief Check that the programmable device is empty (can be programmed).
  * @ingroup device
  *
+ * Calls a progress status function after each 1K checked.
+ *
+ * @param Progress status handler function to be called (or NULL).
  * @return true The device is empty and can be programmed.
  * @return false The device isn't empty, or is unknown - and therefore, can't be programmed.
  */
-extern bool pd_is_empty();
+extern bool pd_is_empty(const progstat_handler_fn progstatfn);
 
 /**
  * @brief Check that the programmable device sector is empty (can be programmed).
@@ -70,6 +137,27 @@ extern bool pd_is_empty();
  * @return false The sector isn't empty, or the device isn't known.
  */
 extern bool pd_is_sect_empty(uint8_t sectno);
+
+/**
+ * @brief The status of the last Programmable Device method.
+ * @ingroup device
+ *
+ * Can be used to get the method status of the last method call for methods that
+ * are not able to return a status.
+ *
+ * @return pd_op_status_t Status of the last operation
+ */
+extern pd_op_status_t pd_method_status();
+
+/**
+ * @brief Read a value from a location of the device.
+ * @ingroup device
+ *
+ * @param info md_info pointer for the device.
+ * @param addr absolute address to read from
+ * @return uint8_t value read
+ */
+extern uint8_t pd_read_value(const md_info_t* info, uint32_t addr);
 
 /**
  * @brief Get the sector for an address within the address.
@@ -115,7 +203,16 @@ static inline uint32_t pd_size(const md_info_t* info) {
     return(1 << (info->abm + 1));
 }
 
-
+/**
+ * @brief Write a value to a location of the device.
+ * @ingroup device
+ *
+ * @param info md_info pointer for the device.
+ * @param addr The address to write to. Must be within the capacity of the device.
+ * @param value The value to write
+ * @return pd_op_status_t
+ */
+extern pd_op_status_t pd_write_value(const md_info_t* info, uint32_t addr, uint8_t value);
 
 /**
  * @brief Initialize the module. Must be called once/only-once before module use.

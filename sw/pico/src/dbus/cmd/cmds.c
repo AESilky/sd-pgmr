@@ -149,40 +149,40 @@ static int _exec_dwr(int argc, char** argv, const char* unparsed) {
 
 const cmd_handler_entry_t cmds_dbus_data_entry = {
     _exec_data,
-    6,
-    "dbusdata",
+    7,
+    ".dbusdata",
     "[val(hex)]"
     "Get value from Data Bus. Set value to Data Bus.",
 };
 
 const cmd_handler_entry_t cmds_dbus_dir_entry = {
     _exec_dir,
-    6,
-    "dbusdir",
+    7,
+    ".dbusdir",
     "[I|O]"
     "Show the direction of the Data Bus. Set the direction of the Data Bus.",
 };
 
 const cmd_handler_entry_t cmds_dbus_dlatch_entry = {
     _exec_dlatch,
-    4,
-    "dlatch",
+    5,
+    ".dlatch",
     "[0|1]",
     "Show the DLATCH state. Set the DLATCH state."
 };
 
 const cmd_handler_entry_t cmds_dbus_rd_entry = {
     _exec_drd,
-    7,
-    "dbusrdctrl",
+    8,
+    ".dbusrdctrl",
     "[0|1]",
     "Show the RD ctrl state. Set the RD ctrl state."
 };
 
 const cmd_handler_entry_t cmds_dbus_wr_entry = {
     _exec_dwr,
-    7,
-    "dbuswrctrl",
+    8,
+    ".dbuswrctrl",
     "[0|1]",
     "Show the WR ctrl state. Set the WR ctrl state."
 };

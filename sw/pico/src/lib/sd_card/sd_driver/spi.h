@@ -38,6 +38,7 @@ typedef struct {
     uint mosi_gpio;
     uint sck_gpio;
     uint baud_rate;
+    bool initSPI;
 
     // Drive strength levels for GPIO outputs.
     // enum gpio_drive_strength { GPIO_DRIVE_STRENGTH_2MA = 0, GPIO_DRIVE_STRENGTH_4MA = 1, GPIO_DRIVE_STRENGTH_8MA = 2,

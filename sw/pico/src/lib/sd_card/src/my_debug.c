@@ -20,10 +20,10 @@ specific language governing permissions and limitations under the License.
 #include "debug_support.h"
 
 void my_printf(const char *pcFormat, ...) {
-    va_list xArgs;
-    va_start(xArgs, pcFormat);
-    debug_printf(pcFormat, xArgs);
-    va_end(xArgs);
+    // va_list xArgs;
+    // va_start(xArgs, pcFormat);
+    // debug_printf(pcFormat, xArgs);
+    // va_end(xArgs);
 }
 
 

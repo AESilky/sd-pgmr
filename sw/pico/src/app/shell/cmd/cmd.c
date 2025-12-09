@@ -235,6 +235,7 @@ static int _cmd_keys(int argc, char** argv, const char* unparsed) {
         return (-1);
     }
     shell_puts("':'            : While busy, enters command mode for one command.\n");
+    shell_puts("^C             : Reset SD Card (use after disk change.\n");
     shell_puts("^H             : Backspace (same as Backspace key on most terminals).\n");
     shell_puts("^K or Up-Arrow : Recall last command.\n");
     shell_puts("^R             : Refresh the terminal screen.\n");
@@ -395,7 +396,8 @@ static void _process_line(char* line) {
     if (!false) {
         // Get a command from the user...
         _cmd_state = CMD_COLLECTING_LINE;
-        shell_printf("%c", CMD_PROMPT);
+        shell_use_cmd_color();
+        shell_putc(CMD_PROMPT);
         shell_getline(_process_line);
     }
     else {

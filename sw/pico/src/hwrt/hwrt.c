@@ -18,6 +18,7 @@
 #include "app.h"
 #include "include/util.h"
 
+#include "display.h"
 #include "dskops/dskops.h"
 #include "rotary_encoder/include/re_pbsw.h"
 #include "rotary_encoder/include/rotary_encoder.h"
@@ -57,14 +58,13 @@ static void _handle_apps_started(cmt_msg_t* msg);
 
 static void _debug_usb_announce(void* data) {
     // Debugging has switched over to the USB. Say hello...
-    debug_printf("DEBUG output now on the USB\n");
+    debug_printf("Console on the USB\n");
 }
 
-static void _debug_switch_to_usb(void* data) {
-    // Switch debugging over to the USB so we can safely use the PD bus
-    debug_printf("Switching DEBUG output to the USB\n");
-    debug_init(DIM_STDIO_TO_USB_DIUART);
-    cmt_run_after_ms(3000, _debug_usb_announce, NULL);
+static void _console_switch_to_usb(void* data) {
+    // Switch debugging/console over to the USB on Core-1
+    debug_init(DIM_STDIO_TO_USB);
+    cmt_run_after_ms(800, _debug_usb_announce, NULL);
 }
 
 
@@ -86,10 +86,6 @@ static void _handle_apps_started(cmt_msg_t* msg) {
     re_minit();       // Rotary Encoder (knob) module
     gpio_set_irq_enabled_with_callback(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
     gpio_set_irq_enabled(IRQ_CMD_ATTN_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-
-    // Let the USB subsystem have some time to come up, then
-    // Switch debugging over to the USB so we can safely use the PD bus
-    cmt_run_after_ms(800, _debug_switch_to_usb, NULL);
 }
 
 /**
@@ -244,15 +240,8 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
 
 
 // ====================================================================
-// Initialization and Startup methods
+// CORE-1 root methods
 // ====================================================================
-
-static void _hwrt_minit() {
-    cmt_msg_hdlr_add(MSG_APPS_STARTED, _handle_apps_started);
-    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_hwrt_housekeeping);
-    cmt_msg_hdlr_add(MSG_HWRT_TEST, _handle_hwrt_test);
-    cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
-}
 
 /**
  * @brief Will be called by the CMT from the Core-1 message loop processor
@@ -267,6 +256,7 @@ static void _core1_started(cmt_msg_t* msg) {
         board_panic("!!! `_core1_started` called more than once or on the wrong core. Core is: %hhd !!!", get_core_num());
     }
     _core1_started = true;
+    debug_tprintf("\nCORE-%d - *** Started ***\n", get_core_num());
 
     // Launch the Application functionality
     //  The APP starts other 'core-1' functionality.
@@ -274,22 +264,26 @@ static void _core1_started(cmt_msg_t* msg) {
 }
 
 /**
- * @brief For Board-0, The `core1_main` kicks off the message loop with the DCS
- * as the primary functionality.
+ * @brief The `core1_main` kicks off the CORE-1 message loop. When it is started, `_core1_started` is called.
  *
  */
 void core1_main() {
-    static bool _core1_main_called = false;
+    static bool _core1_main_called;
     // Make sure we aren't already called and that we are being called from core-1.
     if (_core1_main_called || 1 != get_core_num()) {
         board_panic("!!! `core1_main` called more than once or on the wrong core. Core is: %hhd !!!", get_core_num());
     }
     _core1_main_called = true;
-    info_printf("\nCORE-%d - *** Started ***\n", get_core_num());
-
+    debug_tprintf("\nCORE-%d - *** Starting ***\n", get_core_num());
+    multicore_fifo_drain();
     // Enter into the (endless) Message Dispatching Loop
     message_loop(_core1_started);
 }
+
+
+// ====================================================================
+// Initialization and Startup methods
+// ====================================================================
 
 /**
  * @brief Will be called by the CMT from the Core-0 message loop processor
@@ -298,10 +292,28 @@ void core1_main() {
  * @param msg Nothing important in the message
  */
 static void _hwrt_started(cmt_msg_t* msg) {
-    // Initialize now that the message loop is running.
-    _hwrt_minit();
+    // Initialize all of the things that use the message loop (it is running now).
 
-    dskops_minit();   // Make the Disk Operations available
+    // SPI 0 initialization for the MicroSD Card and Display.
+    spi_init(SPI_SD_DISP_DEVICE, SPI_SLOW_SPEED);
+
+    // Disk Operations
+    dskops_minit();
+
+    // Display
+    display_minit(true); // Initialize, and invert the display (as it is mounted upside down)
+
+    // Let the USB subsystem have some time to come up, then
+    // Switch the console over to the USB
+    cmt_run_after_ms(100, _console_switch_to_usb, NULL);
+
+    cmt_msg_hdlr_add(MSG_APPS_STARTED, _handle_apps_started);
+    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_hwrt_housekeeping);
+    cmt_msg_hdlr_add(MSG_HWRT_TEST, _handle_hwrt_test);
+    cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
+
+    // Starting Core-1 will run the `core1_main`.
+    start_core1();
 
     //
     // Done with the Hardware Runtime Startup - Let the DSC know.

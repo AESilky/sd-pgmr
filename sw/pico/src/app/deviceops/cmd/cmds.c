@@ -44,15 +44,24 @@ const cmd_handler_entry_t cmds_addrtosect_entry;
 const cmd_handler_entry_t cmds_devaddr_entry;
 const cmd_handler_entry_t cmds_devaddr_n_entry;
 const cmd_handler_entry_t cmds_devdump_entry;
+const cmd_handler_entry_t cmds_deverase_entry;
 const cmd_handler_entry_t cmds_devinfo_entry;
 const cmd_handler_entry_t cmds_devmt_entry;
 const cmd_handler_entry_t cmds_devpwr_entry;
 const cmd_handler_entry_t cmds_devrd_entry;
 const cmd_handler_entry_t cmds_devrd_n_entry;
+const cmd_handler_entry_t cmds_devsectaddr_entry;
+const cmd_handler_entry_t cmds_devsecterase_entry;
 const cmd_handler_entry_t cmds_devsectmt_entry;
 const cmd_handler_entry_t cmds_devwr_entry;
 const cmd_handler_entry_t cmds_devwr_n_entry;
+const cmd_handler_entry_t cmds_devwrval_entry;
 
+
+static void _progress(uint32_t v) {
+    // v is typically an address, just print a dot each time we're called.
+    shell_putc('.');
+}
 
 /**
  * @brief Get an unsigned value under a limit from a string or "." to keep the current value.
@@ -253,6 +262,88 @@ _finally:
     return (retval);
 }
 
+static int _exec_derase_all(int argc, char** argv, const char* unparsed) {
+    if (argc != 1) {
+        // We don't take any arguments
+        cmd_help_display(&cmds_deverase_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    pdo_request_pwr_on(true);
+    if (ERRORNO) {
+        shell_printferr("Cannot select device.");
+        retval = -1;
+        goto _finally;
+    }
+    // Get the device info
+    const md_info_t* info = pd_info();
+    if (!info) {
+        shell_printferr("Device cannot be determined.\n");
+        retval = -1;
+        goto _finally;
+    }
+    shell_puts("erasing device...");
+    pd_op_status_t stat = pd_erase_device(info);
+    if (stat != PD_OP_OK) {
+        shell_printf("\nError erasing device: (%d)\n", stat);
+    }
+    else {
+        shell_puts("\nDevice erased.\n");
+    }
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
+    return (retval);
+}
+
+static int _exec_derase_sect(int argc, char** argv, const char* unparsed) {
+    if (argc != 2) {
+        // We take exactly 1 argument: sector
+        cmd_help_display(&cmds_devsecterase_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    pdo_request_pwr_on(true);
+    if (ERRORNO) {
+        shell_printferr("Cannot select device.");
+        retval = -1;
+        goto _finally;
+    }
+    // Get the device info
+    const md_info_t* info = pd_info();
+    if (!info) {
+        shell_printferr("Device cannot be determined.\n");
+        retval = -1;
+        goto _finally;
+    }
+    // Get the sector number
+    bool success;
+    uint8_t sect = (uint16_t)uint_from_str(argv[1], &success);
+    if (!success || sect >= info->sectcnt) {
+        shell_printferr("Value error - '%s' is not valid. Must be 0-%hu.\n", argv[1], (uint16_t)(info->sectcnt - 1));
+        retval = -1;
+        goto _finally;
+    }
+    shell_printf("erasing sector %hu...", sect);
+    pd_op_status_t stat = pd_erase_sect(info, sect);
+    if (stat != PD_OP_OK) {
+        shell_printf("\nError erasing sector %hu: (%d)\n", sect, stat);
+    }
+    else {
+        shell_printf("\nSector %hu erased.\n", sect);
+    }
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
+    return (retval);
+}
+
 static int _exec_dump(int argc, char** argv, const char* unparsed) {
     static uint16_t _dump_len = 256; // Display 256 bytes unless told otherwise
 
@@ -392,10 +483,52 @@ static int _exec_dmt(int argc, char** argv, const char* unparsed) {
         goto _finally;
     }
     shell_printf("checking device...");
-    bool ismt = pd_is_empty(info);
+    bool ismt = pd_is_empty(_progress);
     const char* mods = (ismt ? "" : "not ");
     shell_printf("\nDevice is %sempty\n", mods);
 
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
+    return (retval);
+}
+
+
+static int _exec_dsect_addr(int argc, char** argv, const char* unparsed) {
+    if (argc != 2) {
+        // We take exactly 1 argument: sector number
+        cmd_help_display(&cmds_devsectaddr_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    pdo_request_pwr_on(true);
+    if (ERRORNO) {
+        shell_printferr("Cannot check device.");
+        retval = -1;
+        goto _finally;
+    }
+    // Get the device info
+    const md_info_t* info = pd_info();
+    if (!info) {
+        shell_printferr("Device cannot be determined.\n");
+        retval = -1;
+        goto _finally;
+    }
+    // Get the sector number
+    bool success;
+    uint8_t sect = (uint16_t)uint_from_str(argv[1], &success);
+    if (!success || sect >= info->sectcnt) {
+        shell_printferr("Value error - '%s' is not valid. Must be 0-%hu.\n", argv[1], (uint16_t)(info->sectcnt - 1));
+        retval = -1;
+        goto _finally;
+    }
+    uint32_t sectsize = pd_sectsize(info);
+    uint32_t addrs = (sect * sectsize);
+    uint32_t addre = addrs + (sectsize - 1);
+    shell_printf("\nDevice sector %hu address: Start=%05X End=%05X\n", sect, addrs, addre);
 _finally:
     // Try to turn the power off
     pdo_request_pwr_on(false);
@@ -617,6 +750,82 @@ _finally:
     return (retval);
 }
 
+static int _exec_wrval(int argc, char** argv, const char* unparsed) {
+    argv++; argc--; // Move past the command name
+    if (argc < 2) {
+        // We only take 2+ arguments: addr data {data2 ...}
+        cmd_help_display(&cmds_devwrval_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    // using this command stops any repeat operation.
+    int retval = 0;
+    _rptop = RPT_NONE;
+    _repeat = false;
+    if (_rptdlyip) {
+        scheduled_msg_cancel2(MSG_EXEC, _repeat_handler);
+    }
+    // Try to turn the power on
+    pdo_request_pwr_on(true);
+    if (ERRORNO < 0) {
+        shell_printferr("Unable to power on the device.\n");
+        retval = -1;
+        goto _finally;
+    }
+    const md_info_t* info = pd_info();
+    if (!info) {
+        shell_printferr("Device not identified.\n");
+        retval = -1;
+        goto _finally;
+    }
+    uint32_t addr = _addr;
+    // The 1st arg is the address to use (hex).
+    char* addrstr = *argv++; argc--;
+    // Arg is address (HEX or '.').
+    bool valid = _get_val(&addr, addrstr, pd_addrmax(info), true, "hex address");
+    if (!valid) {
+        retval = -1;
+        goto _finally;
+    }
+    // Read all of the data values (without advancing the arg pointer)
+    bool success;
+    for (int i = 0; i < argc; i++) {
+        uint16_t dv = (uint16_t)uint_from_hexstr(argv[i], &success);
+        if (!success || dv > 0xFF) {
+            shell_printf("Value error - value %d '%s' is not a valid hex byte.\n", (i+1), argv[i]);
+            retval = -1;
+            goto _finally;
+        }
+    }
+    // The address and all of the values are valid, process them
+    _addr = addr;
+    while (argc > 0) {
+        const char* av = *argv++; argc--;
+        uint16_t dv = (uint16_t)uint_from_hexstr(av, &success);
+        if (!success || dv > 0xFF) { // Shouldn't happen, but just in case...
+            shell_printf("Value error - '%s'\n", av);
+            retval = -1;
+            goto _finally;
+        }
+        _data = (uint8_t)dv;
+        // Write the data
+        pd_op_status_t ops = pd_write_value(info, _addr, _data);
+        if (ops != PD_OP_OK) {
+            shell_printferr("Write operation to %05X of %02X failed (%d)\n", _addr, _data, ops);
+            goto _finally;
+        }
+        else {
+            uint8_t dr = pd_read_value(info, _addr);
+            shell_printf("%05X %02X\n", _addr, dr);
+            _addr++;
+        }
+    }
+_finally:
+    // Try to turn the power off
+    pdo_request_pwr_on(false);
+
+    return (retval);
+}
+
 static int _exec_nwr(int argc, char** argv, const char* unparsed) {
     if (argc != 2) {
         // We only take 1 argument: data
@@ -658,8 +867,8 @@ _finally:
 
 const cmd_handler_entry_t cmds_addrtosect_entry = {
     _exec_atos,
-    4,
-    "pdatos",
+    5,
+    "patos",
     "addr(hex)",
     "Convert an address to a Device Sector#.",
 };
@@ -667,7 +876,7 @@ const cmd_handler_entry_t cmds_addrtosect_entry = {
 const cmd_handler_entry_t cmds_devaddr_entry = {
     _exec_addr,
     4,
-    "pdaddr",
+    "paddr",
     "[addr(hex)|R]",
     "Show the address being used and optionally set it. Repeat setting it (for troubleshooting).",
 };
@@ -675,23 +884,31 @@ const cmd_handler_entry_t cmds_devaddr_entry = {
 const cmd_handler_entry_t cmds_devaddr_n_entry = {
     _exec_addrn,
     4,
-    "pdan",
+    "paaddr",
     NULL,
-    "Advance the address.",
+    "Advance the device address.",
+};
+
+const cmd_handler_entry_t cmds_deverase_entry = {
+    _exec_derase_all,
+    6,
+    "perase",
+    NULL,
+    "Erase the device.",
 };
 
 const cmd_handler_entry_t cmds_devdump_entry = {
     _exec_dump,
-    4,
-    "pddump",
+    3,
+    "pdump",
     "[[addr(hex)|.] len(dec)]",
     "Dump device data. Optionally specify start address and length.",
 };
 
 const cmd_handler_entry_t cmds_devinfo_entry = {
     _exec_dinfo,
-    3,
-    "pdinfo",
+    4,
+    "pinfo",
     NULL,
     "Get device information.",
 };
@@ -699,7 +916,7 @@ const cmd_handler_entry_t cmds_devinfo_entry = {
 const cmd_handler_entry_t cmds_devmt_entry = {
     _exec_dmt,
     5,
-    "pdisempty",
+    "pisempty",
     NULL,
     "Check if device is empty.",
 };
@@ -707,31 +924,47 @@ const cmd_handler_entry_t cmds_devmt_entry = {
 const cmd_handler_entry_t cmds_devpwr_entry = {
     _exec_dpwr,
     3,
-    "pdpwr",
+    "ppwr",
     "A|ON|OFF",
     "Set device Power Mode A|OFF|ON.",
 };
 
 const cmd_handler_entry_t cmds_devrd_entry = {
     _exec_rd,
-    4,
-    "pdrd",
+    3,
+    ".prd",
     "[addr(hex)|R]",
     "Read device data from the current or specified address, or start a repeated read.\nUsing this command without 'R' stops any repeated operation.",
 };
 
 const cmd_handler_entry_t cmds_devrd_n_entry = {
     _exec_nrd,
-    4,
-    "pdrn",
+    3,
+    ".prn",
     NULL,
     "Advance the address and read device data.",
 };
 
+const cmd_handler_entry_t cmds_devsectaddr_entry = {
+    _exec_dsect_addr,
+    6,
+    "psectaddr",
+    "sectno(dec)",
+    "Get address range for a device sector. 0-based sector number.",
+};
+
+const cmd_handler_entry_t cmds_devsecterase_entry = {
+    _exec_derase_sect,
+    10,
+    "psecterase",
+    "sectno(dec)",
+    "Erase device sector. 0-based sector number.",
+};
+
 const cmd_handler_entry_t cmds_devsectmt_entry = {
     _exec_dsectmt,
-    5,
-    "pdissectempty",
+    6,
+    "psectempty",
     "sectno(dec)",
     "Check if device sector is empty. 0-based sector number.",
 };
@@ -739,7 +972,7 @@ const cmd_handler_entry_t cmds_devsectmt_entry = {
 const cmd_handler_entry_t cmds_devwr_entry = {
     _exec_wr,
     4,
-    "pdwr",
+    ".pwr",
     "{[addr(hex)] data(hex)}|R",
     "Write device data to the current or specified address, or start a repeated write.\nUsing this command without 'R' stops any repeated operation.",
 };
@@ -747,9 +980,17 @@ const cmd_handler_entry_t cmds_devwr_entry = {
 const cmd_handler_entry_t cmds_devwr_n_entry = {
     _exec_nwr,
     4,
-    "pdwn",
+    ".pwn",
     "data(hex)",
     "Advance the address and write device data.",
+};
+
+const cmd_handler_entry_t cmds_devwrval_entry = {
+    _exec_wrval,
+    4,
+    "pwrval",
+    "addr(hex) data(hex) [data(hex)...]",
+    "Write one or more values to the specified address. Device location(s) must be empty.",
 };
 
 
@@ -758,12 +999,16 @@ void pdcmds_minit(void) {
     cmd_register(&cmds_devaddr_entry);
     cmd_register(&cmds_devaddr_n_entry);
     cmd_register(&cmds_devdump_entry);
+    cmd_register(&cmds_deverase_entry);
     cmd_register(&cmds_devinfo_entry);
     cmd_register(&cmds_devmt_entry);
     cmd_register(&cmds_devpwr_entry);
     cmd_register(&cmds_devrd_entry);
     cmd_register(&cmds_devrd_n_entry);
+    cmd_register(&cmds_devsectaddr_entry);
+    cmd_register(&cmds_devsecterase_entry);
     cmd_register(&cmds_devsectmt_entry);
     cmd_register(&cmds_devwr_entry);
     cmd_register(&cmds_devwr_n_entry);
+    cmd_register(&cmds_devwrval_entry);
 }

@@ -135,32 +135,34 @@ bool my_spi_init(spi_t *pSPI) {
         // For the IRQ notification:
         sem_init(&pSPI->sem, 0, 1);
 
-        /* Configure component */
-        // Enable SPI at 100 kHz and connect to GPIOs
-        spi_init(pSPI->hw_inst, 100 * 1000);
-        spi_set_format(pSPI->hw_inst, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+        /* Configure SPI */
+        if (pSPI->initSPI) {
+            // Enable SPI at 100 kHz and connect to GPIOs
+            spi_init(pSPI->hw_inst, 100 * 1000);
+            spi_set_format(pSPI->hw_inst, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 
-        gpio_set_function(pSPI->miso_gpio, GPIO_FUNC_SPI);
-        gpio_set_function(pSPI->mosi_gpio, GPIO_FUNC_SPI);
-        gpio_set_function(pSPI->sck_gpio, GPIO_FUNC_SPI);
-        // ss_gpio is initialized in sd_init_driver()
+            gpio_set_function(pSPI->miso_gpio, GPIO_FUNC_SPI);
+            gpio_set_function(pSPI->mosi_gpio, GPIO_FUNC_SPI);
+            gpio_set_function(pSPI->sck_gpio, GPIO_FUNC_SPI);
+            // ss_gpio is initialized in sd_init_driver()
 
-        // Slew rate limiting levels for GPIO outputs.
-        // enum gpio_slew_rate { GPIO_SLEW_RATE_SLOW = 0, GPIO_SLEW_RATE_FAST = 1 }
-        // void gpio_set_slew_rate (uint gpio,enum gpio_slew_rate slew)
-        // Default appears to be GPIO_SLEW_RATE_SLOW.
+            // Slew rate limiting levels for GPIO outputs.
+            // enum gpio_slew_rate { GPIO_SLEW_RATE_SLOW = 0, GPIO_SLEW_RATE_FAST = 1 }
+            // void gpio_set_slew_rate (uint gpio,enum gpio_slew_rate slew)
+            // Default appears to be GPIO_SLEW_RATE_SLOW.
 
-        // Drive strength levels for GPIO outputs.
-        // enum gpio_drive_strength { GPIO_DRIVE_STRENGTH_2MA = 0, GPIO_DRIVE_STRENGTH_4MA = 1, GPIO_DRIVE_STRENGTH_8MA = 2,
-        // GPIO_DRIVE_STRENGTH_12MA = 3 }
-        // enum gpio_drive_strength gpio_get_drive_strength (uint gpio)
-        if (pSPI->set_drive_strength) {
-            gpio_set_drive_strength(pSPI->mosi_gpio, pSPI->mosi_gpio_drive_strength);
-            gpio_set_drive_strength(pSPI->sck_gpio, pSPI->sck_gpio_drive_strength);
+            // Drive strength levels for GPIO outputs.
+            // enum gpio_drive_strength { GPIO_DRIVE_STRENGTH_2MA = 0, GPIO_DRIVE_STRENGTH_4MA = 1, GPIO_DRIVE_STRENGTH_8MA = 2,
+            // GPIO_DRIVE_STRENGTH_12MA = 3 }
+            // enum gpio_drive_strength gpio_get_drive_strength (uint gpio)
+            if (pSPI->set_drive_strength) {
+                gpio_set_drive_strength(pSPI->mosi_gpio, pSPI->mosi_gpio_drive_strength);
+                gpio_set_drive_strength(pSPI->sck_gpio, pSPI->sck_gpio_drive_strength);
+            }
+
+            // SD cards' DO MUST be pulled up.
+            gpio_pull_up(pSPI->miso_gpio);
         }
-
-        // SD cards' DO MUST be pulled up.
-        gpio_pull_up(pSPI->miso_gpio);
 
         // Grab some unused dma channels
         pSPI->tx_dma = dma_claim_unused_channel(true);

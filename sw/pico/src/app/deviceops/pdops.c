@@ -187,6 +187,7 @@ void pdo_data_set(uint8_t data) {
         return;
     }
 
+    _op_end(); // Just in case something left the device in a command state
     _op_start();
     dbus_wr(data); // put the data into the output latch
     // Take 'data_latch' low then high

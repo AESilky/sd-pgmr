@@ -27,15 +27,18 @@ specific language governing permissions and limitations under the License.
 #include "spi.h"
 
 //#define TRACE_PRINTF(fmt, args...)
-#define TRACE_PRINTF debug_printf  // task_printf
+#define TRACE_PRINTF DBG_PRINTF  // task_printf
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 
 void sd_spi_go_high_frequency(sd_card_t *pSD) {
     uint actual = spi_set_baudrate(pSD->spi->hw_inst, pSD->spi->baud_rate);
-    TRACE_PRINTF("%s: Actual frequency: %lu\n", __FUNCTION__, (long)actual);
+    //TRACE_PRINTF("%s: Requested: %lu  Actual frequency: %lu\n", __FUNCTION__, (long)pSD->spi->baud_rate, (long)actual);
 }
 void sd_spi_go_low_frequency(sd_card_t *pSD) {
-    uint actual = spi_set_baudrate(pSD->spi->hw_inst, 400 * 1000); // Actual frequency: 398089
-    TRACE_PRINTF("%s: Actual frequency: %lu\n", __FUNCTION__, (long)actual);
+    uint slow = (400 * 1000);
+    uint actual = spi_set_baudrate(pSD->spi->hw_inst, slow); // Actual frequency: 398089
+    //TRACE_PRINTF("%s: Requested: %lu  Actual frequency: %lu\n", __FUNCTION__, (long)slow, (long)actual);
 }
 
 static void sd_spi_lock(sd_card_t *pSD) {

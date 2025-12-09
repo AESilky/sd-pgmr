@@ -8,7 +8,7 @@
  * found with them or a 'better' library is found).
  *
  * This module provides a shared file path name buffer (char*) to get file name/path results
- * into. The shared buffer is returned the a call to the `dsk_get_shared_path_buf()`.
+ * into. The shared buffer is returned from a call to the `dsk_get_shared_path_buf()`.
  * This is to save on memory use and avoid repeated malloc/free calls. However, that
  * means that the result returned by a function might change if another disk/file operation
  * is performed. If the caller intends to keep the result for an extended period (possibly
@@ -40,9 +40,13 @@ extern "C" {
  */
 extern char* dsk_get_shared_path_buf();
 
-FRESULT dsk_mount_sd();
+extern FRESULT dsk_mount_sd();
 
-FRESULT dsk_unmount_sd();
+extern FRESULT dsk_reset_sd();
+
+extern FRESULT dsk_reset_sd_c1();
+
+extern FRESULT dsk_unmount_sd();
 
 
 /**

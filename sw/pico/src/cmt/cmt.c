@@ -436,6 +436,23 @@ void message_loop(msg_handler_fn fstart) {
             psa->ts_psa = t_start;
         }
 
+        // If this is Core-0, check the inter-core fifo to see if there is something from
+        // Core-1 to run.
+        if (corenum == 0) {
+            if (multicore_fifo_rvalid()) {
+                // Yes...
+                debug_trace("runon_core0 executing\n");
+                const cmt_msg_t* c1msg = (const cmt_msg_t*)multicore_fifo_pop_blocking_inline();
+                // There should be a handler, as it shouldn't have been sent here otherwise.
+                if (c1msg->hdlr != NULL_MSG_HDLR) {
+                    gpio_put(PICO_DEFAULT_LED_PIN, 1); // Turn the Pico LED on while the handler runs
+                    c1msg->hdlr(&msg);
+                    gpio_put(PICO_DEFAULT_LED_PIN, 0); // Turn the Pico LED off
+                }
+                debug_trace("runon_core0 returning\n");
+                multicore_fifo_push_blocking_inline((uint32_t)c1msg);
+            }
+        }
         if (get_msg_function(&msg)) {
             psa->retrieved += 1; // A message was retrieved, count it
             _msg_curlast[corenum] = msg.id;

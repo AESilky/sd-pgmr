@@ -62,6 +62,8 @@ auto_init_mutex(bop_mutex);
 int board_init() {
     int retval = 0;
 
+    _diagout_disabled = true; // No output until all is set up
+
     gpio_init(LED_PIN);
     gpio_put(LED_PIN, 1);
     gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -75,9 +77,6 @@ int board_init() {
     gpio_set_drive_strength(SPI_SD_DISP_SCK, GPIO_DRIVE_STRENGTH_4MA);    // Two devices connected
     // SPI 0 Data In Pull-Up
     gpio_pull_up(SPI_SD_DISP_MISO);
-    // SPI 0 initialization for the MicroSD Card and Display.
-    spi_init(SPI_SD_DISP_DEVICE, SPI_SD_DISP_SPEED);
-
 
     // GPIO Outputs (other than SPI, I2C, UART, and chip-selects
 
@@ -105,13 +104,6 @@ int board_init() {
     gpio_set_function(RPADC2, GPIO_IN);
     gpio_set_pulls(RPADC2, false, false);
 
-    //    Rotary Encoder Input
-    gpio_set_function(ROTARY_A_GPIO, GPIO_FUNC_SIO);
-    gpio_set_dir(ROTARY_A_GPIO, GPIO_IN);
-    gpio_set_pulls(ROTARY_A_GPIO, true, false);
-    gpio_set_function(ROTARY_B_GPIO, GPIO_FUNC_SIO);
-    gpio_set_dir(ROTARY_B_GPIO, GPIO_IN);
-    gpio_set_pulls(ROTARY_B_GPIO, true, false);
     //    Rotary Encoder Switch Input
     gpio_set_function(ROTARY_SW_GPIO, GPIO_FUNC_SIO);
     gpio_set_dir(ROTARY_SW_GPIO, GPIO_IN);
@@ -147,7 +139,7 @@ int board_init() {
 
     // Initialize the Data Bus
     dbus_minit();
-    
+
     return(retval);
 }
 

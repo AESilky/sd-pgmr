@@ -68,8 +68,6 @@ static void _gpio_event_string(char *buf, uint32_t events);
 // 8.9 Msteps/sec at 125MHz
 static inline void _quadrature_encoder_program_init(PIO pio, uint sm, uint offset, uint pin, int max_step_rate) {
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 2, false);
-    gpio_pull_up(pin);
-    gpio_pull_up(pin + 1);
     pio_sm_config c = quadrature_encoder_program_get_default_config(offset);
     sm_config_set_in_pins(&c, pin); // for WAIT, IN
     sm_config_set_jmp_pin(&c, pin); // for JMP
@@ -166,13 +164,21 @@ void re_minit() {
     if (_initialized) {
         board_panic("!!! re_module_init: Called more than once !!!");
     }
-    // GPIO is initialized in `board.c` with the rest of the board.
     _enc_delta = 0;
     _enc_value = 0;
     _enc_t_delta = now_ms();
     _enc_t_last = _enc_t_delta;
+    // GPIO initialize if DEBUG_TRACE isn't enabled.
+#ifndef DEBUG_TRACE_ENABLE
+    gpio_set_function(ROTARY_A_GPIO, GPIO_FUNC_SIO);
+    gpio_set_dir(ROTARY_A_GPIO, GPIO_IN);
+    gpio_set_pulls(ROTARY_A_GPIO, true, false);
+    gpio_set_function(ROTARY_B_GPIO, GPIO_FUNC_SIO);
+    gpio_set_dir(ROTARY_B_GPIO, GPIO_IN);
+    gpio_set_pulls(ROTARY_B_GPIO, true, false);
     uint offset = pio_add_program(PIO_ROTARY_BLOCK, &quadrature_encoder_program);
     _quadrature_encoder_program_init(PIO_ROTARY_BLOCK, PIO_ROTARY_SM, offset, _PIN_rotary_ENC_AB, 20000);
+#endif
 
     _initialized = true;
 }

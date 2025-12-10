@@ -26,6 +26,7 @@ extern "C" {
 
 #include "ff.h"
 #include "f_util.h"
+#include "ff_stdio.h"
 
 /** @brief As on 'classic' DOS = 260 */
 #define MAX_PATH 260

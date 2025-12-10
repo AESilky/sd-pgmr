@@ -282,6 +282,6 @@ void pdo_minit() {
     }
     _initialized = true;
 
-    pdo_pwr_mode(PDPWR_OFF);
+    pdo_pwr_mode(PDPWR_AUTO);
     _addrHctrl = (~_FRW_NONE);
 }

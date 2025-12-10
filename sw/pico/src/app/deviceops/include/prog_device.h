@@ -37,12 +37,15 @@ typedef enum pd_op_status_ {
     PD_OP_OK = 0,
     PD_DEV_NOSUP,       // Device not supported
     PD_ERASE_FAIL,
+    PD_FILE_OP_ERR,
     PD_NO_DEVICE,
+    PD_DEVICE_SIZE,
     PD_NOT_READY,
     PD_NOT_IDENTIFIED,
     PD_NOT_ERASED,
     PD_ADDR_INVALID,
     PD_PROG_FAILED,
+    PD_VERIFY_FAILED,
 } pd_op_status_t;
 
 /**
@@ -150,6 +153,27 @@ extern bool pd_is_sect_empty(uint8_t sectno);
 extern pd_op_status_t pd_method_status();
 
 /**
+ * @brief Program the device from a binary file.
+ * @ingroup device
+ *
+ * This performs a few tests:
+ *  1) Can the file be stat'ed
+ *  2) Is the file no larger than the device
+ *  3) Can the file be opened for reading
+ *
+ * If those tests pass, the device will attempt to be programmed. At each 1K the
+ * progress status function will be called with the address at that point.
+ *
+ * If, at any point, the value can't be programmed, the method will close the file and exit.
+ *
+ * @param info md_info pointer for the device.
+ * @param filename Filename of the file to use.
+ * @param progstatfn Progress status function, or NULL.
+ * @return pd_op_status_t
+ */
+extern pd_op_status_t pd_prog_fb(const md_info_t* info, const char* filename, const progstat_handler_fn progstatfn);
+
+/**
  * @brief Read a value from a location of the device.
  * @ingroup device
  *
@@ -202,6 +226,27 @@ extern uint32_t pd_sectstart(const md_info_t* info, uint8_t sect);
 static inline uint32_t pd_size(const md_info_t* info) {
     return(1 << (info->abm + 1));
 }
+
+/**
+ * @brief Verify the device against a binary file.
+ * @ingroup device
+ *
+ * This performs a few tests:
+ *  1) Can the file be stat'ed
+ *  2) Can the file be opened for reading
+ *
+ * If those tests pass, the device will be verified byte-by-byte. At each 1K the
+ * progress status function will be called with the address at that point.
+ *
+ * If, at any point, the value doesn't match, the method will close the file and exit.
+ *
+ * @param info md_info pointer for the device.
+ * @param filename Filename of the file to use.
+ * @param lastaddr Pointer to a uint32_t to receive the address in error.
+ * @param progstatfn Progress status function, or NULL.
+ * @return pd_op_status_t
+ */
+extern pd_op_status_t pd_verify_fb(const md_info_t* info, const char* filename, uint32_t* lastaddr, const progstat_handler_fn progstatfn);
 
 /**
  * @brief Write a value to a location of the device.

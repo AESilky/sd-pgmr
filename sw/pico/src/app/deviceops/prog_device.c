@@ -21,6 +21,7 @@
 #include "pdops.h"
 
 #include "board.h"
+#include "dskops.h"
 #include "msgpost.h"
 #include "include/util.h"
 
@@ -115,8 +116,9 @@ static md_info_t md_MX_MX29F040 = {
 #define PD_MicroChp_SECT_ER_ADJ 12
 #define PD_MicroChp_SECT_ER_CMD 0x30
 
-/** @brief Image for one sector (largest) of the programmable device */
-static uint8_t _imgbuf[64*ONE_K];
+#define IMAGE_BUF_SIZE ONE_K
+/** @brief Buffer to read/write files from for the programmable device */
+static uint8_t _imgbuf[IMAGE_BUF_SIZE];
 
 /** @brief The size in bytes of the current device sector */
 static uint32_t _sector_size;
@@ -367,6 +369,84 @@ pd_op_status_t pd_method_status() {
     return _method_status;
 }
 
+pd_op_status_t pd_prog_fb(const md_info_t* info, const char* filename, const progstat_handler_fn progstatfn) {
+    FF_FILE* fp = NULL;
+    FF_Stat_t fstat;
+    // Set up for a file error. We'll clear it once we are through the initial file ops.
+    ERRORNO = _method_status = PD_FILE_OP_ERR;
+    if (ff_stat(filename, &fstat) != 0) {
+        return (_method_status);
+    }
+    // Get the info about the device
+    uint32_t pdsize = pd_size(info);
+    if (fstat.st_size > pdsize) {
+        ERRORNO = _method_status = PD_DEVICE_SIZE;
+        return (_method_status);
+    }
+    fp = ff_fopen(filename, "r");
+    if (!fp) {
+        ERRORNO = _method_status = PD_FILE_OP_ERR;
+        return (_method_status);
+    }
+
+    // The file is open for reading and it will fit on the device.
+    ERRORNO = _method_status = PD_PROG_FAILED;
+    uint32_t addr = 0;
+    uint32_t addrmax = pd_addrmax(info);
+    _cmd_end(); // Just in case the device was left in a command state.
+    while (addr <= addrmax && addr < fstat.st_size) {
+        // Read 'IMAGE_BUF_SIZE' (1K) from the file
+        size_t br = ff_fread(&_imgbuf, sizeof(uint8_t), IMAGE_BUF_SIZE, fp);
+        if (br == 0 && addr != (fstat.st_size - 1)) {
+            // Didn't read as many bytes as the stat indicates
+            ERRORNO = _method_status = PD_FILE_OP_ERR;
+            goto _finally;
+        }
+        for (int i = 0; i < br; i++) {
+            if (addr % ONE_K == 0 && progstatfn) {
+                progstatfn(addr);
+            }
+            // Write it
+            uint8_t b = _imgbuf[i];
+            uint8_t v = pdo_data_get_from(addr);
+            if (ERRORNO != 0) {
+                goto _finally;
+            }
+            if (v != b) {
+                if (v != MT_BYTE_VAL) {
+                    ERRORNO = _method_status = PD_NOT_ERASED;
+                    goto _finally;
+                }
+                if (!_cmd_start(F_CMD_PROG)) {
+                    ERRORNO = _method_status = PD_NOT_READY;
+                    goto _finally;
+                }
+                // If the power was on for the `_cmd_start` call, we'll assume that it remains on.
+                pdo_data_set_at(addr, b);
+                // Get the device status
+                uint8_t v2 = _chk_wr_status(b);
+                if (v2 != b) {
+                    goto _finally;
+                }
+            }
+            addr++;
+            if (addr > addrmax || addr == fstat.st_size) {
+                break;
+            }
+        }
+    }
+    if (addr == fstat.st_size) {
+        ERRORNO = _method_status = PD_OP_OK;
+    }
+_finally:
+    _cmd_end();
+    // Close the file to free resources
+    if (fp) {
+        ff_fclose(fp);
+    }
+    return (_method_status);
+}
+
 uint8_t pd_read_value(const md_info_t* info, uint32_t addr) {
     uint32_t maxaddr = pd_addrmax(info);
     if (addr > maxaddr) {
@@ -386,6 +466,71 @@ uint32_t pd_sectstart(const md_info_t* info, uint8_t sect) {
     uint32_t saddr = sect * sectsize;
     _method_status = PD_OP_OK;
     return (saddr);
+}
+
+pd_op_status_t pd_verify_fb(const md_info_t* info, const char* filename, uint32_t* lastaddr, const progstat_handler_fn progstatfn) {
+    FF_FILE* fp = NULL;
+    FF_Stat_t fstat;
+    // Set up for a file error. We'll clear it once we are through the initial file ops.
+    ERRORNO = _method_status = PD_FILE_OP_ERR;
+    if (ff_stat(filename, &fstat) != 0) {
+        return (_method_status);
+    }
+    // Get the info about the device
+    uint32_t pdsize = pd_size(info);
+    if (fstat.st_size > pdsize) {
+        ERRORNO = _method_status = PD_DEVICE_SIZE;
+        return (_method_status);
+    }
+    fp = ff_fopen(filename, "r");
+    if (!fp) {
+        ERRORNO = _method_status = PD_FILE_OP_ERR;
+        return (_method_status);
+    }
+    // The file is open for reading and it will fit on the device.
+    ERRORNO = _method_status = PD_VERIFY_FAILED;
+    uint32_t addr = 0;
+    uint32_t addrmax = pd_addrmax(info);
+    _cmd_end(); // Just in case the device was left in a command state.
+    while (addr <= addrmax && addr < fstat.st_size) {
+        // Read 'IMAGE_BUF_SIZE' (1K) from the file
+        size_t br = ff_fread(&_imgbuf, sizeof(uint8_t), IMAGE_BUF_SIZE, fp);
+        if (br == 0 && addr != (fstat.st_size - 1)) {
+            // Didn't read as many bytes as the stat indicates
+            ERRORNO = _method_status = PD_FILE_OP_ERR;
+            goto _finally;
+        }
+        for (int i = 0; i < br; i++) {
+            if (addr % ONE_K == 0 && progstatfn) {
+                progstatfn(addr);
+            }
+            // Verify it
+            uint8_t b = _imgbuf[i];
+            uint8_t v = pdo_data_get_from(addr);
+            if (ERRORNO != 0) {
+                goto _finally;
+            }
+            if (v != b) {
+                // Data wasn't the same
+                goto _finally;
+            }
+            addr++;
+            if (addr > addrmax || addr == fstat.st_size) {
+                break;
+            }
+        }
+    }
+    if (addr == fstat.st_size) {
+        ERRORNO = _method_status = PD_OP_OK;
+    }
+_finally:
+    _cmd_end();
+    *lastaddr = addr;
+    // Close the file to free resources
+    if (fp) {
+        ff_fclose(fp);
+    }
+    return (_method_status);
 }
 
 pd_op_status_t pd_write_value(const md_info_t* info, uint32_t addr, uint8_t value) {

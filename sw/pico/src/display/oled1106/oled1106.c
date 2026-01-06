@@ -12,7 +12,9 @@
 
 #include "board.h"
 #include "system_defs.h"
+#include "include/util.h"
 
+#include <stdio.h>
 #include <string.h>
 
 // commands (see datasheet)
@@ -356,8 +358,23 @@ void display_char(unsigned short int row, unsigned short int col, const char c, 
     }
 }
 
-const display_info_t display_info() {
-    return _dinfo;
+const display_info_t* display_info() {
+    return &_dinfo;
+}
+
+void display_line(unsigned short int row, const char* s, display_justify_t j, bool invert, bool underline, bool paint) {
+    char buf[_dinfo.cols + 1];
+    buf[_dinfo.cols] = '\0';
+    int sl = strlen(s);
+    int pad = constrain((_dinfo.cols - sl), 0, _dinfo.cols);
+    if (pad) {
+        // Padding is needed - set buffer to spaces
+        memset(buf, ' ', _dinfo.cols);
+    }
+    int pl = (j == DISP_JUSTIFY_LEFT ? 0 : j == DISP_JUSTIFY_RIGHT ? pad : pad/2);
+    memcpy(buf+pl, s, sl); // Not using `strcpynt` as we've terminated as needed
+    display_row_clear(row, false);
+    display_string(row, 0, buf, invert, underline, paint);
 }
 
 /** @brief Paint the physical screen

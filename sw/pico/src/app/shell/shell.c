@@ -498,7 +498,7 @@ void shell_putc(uint8_t c) {
     putchar(c);
 }
 
-void shell_puts(char* str) {
+void shell_puts(const char* str) {
     if (_wraptext_on) {
         putchar('\n');
         _wraptext_on = false;

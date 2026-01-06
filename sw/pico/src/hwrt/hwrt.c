@@ -30,7 +30,8 @@
 
 #define _HWRT_STATUS_PULSE_PERIOD 6999
 
-static volatile bool _apps_started = false;
+static volatile bool _apps_started;
+static volatile bool _attn_flag;
 
 typedef bool (*sw_pressed_fn)(void);
 
@@ -210,6 +211,14 @@ void _gpio_irq_handler(uint gpio, uint32_t events) {
 static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
     // The GPIO needs to be low for at least 80ms to be considered a button press.
     if (events & GPIO_IRQ_EDGE_FALL) {
+        // We control the ATTN flag without use of messages, as routines might
+        // not be checking messages.
+        if (sw == SW_ATTNCMD) {
+            _attn_flag = true;
+        }
+        //
+        // The rest of the processing relies on the message system running.
+        //
         // Delay to see if it is user input.
         // Check to see if we have already scheduled a debounce message.
         if (!scheduled_msg_exists2(MSG_SW_DEBOUNCE, _sw_debounce)) {
@@ -238,6 +247,17 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
     }
 }
 
+// ====================================================================
+// Public methods
+// ====================================================================
+
+void attn_clear() {
+    _attn_flag = false;
+}
+
+bool attn_is_set() {
+    return (_attn_flag);
+}
 
 // ====================================================================
 // CORE-1 root methods

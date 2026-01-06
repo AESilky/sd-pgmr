@@ -42,6 +42,20 @@ typedef struct _sw_action_data_ {
     bool repeat;
 } switch_action_data_t;
 
+/**
+ * @brief Clear the ATTENTION flag (which is set by press of the ATTN switch)
+ * @ingroup curswitch
+ */
+extern void attn_clear();
+
+/**
+ * @brief True if the ATTN button has been pressed since the attention state was cleared.
+ * @ingroup curswitch
+ *
+ * @return true ATTN has been pressed (attention set)
+ * @return false ATTN has not been pressed
+ */
+extern bool attn_is_set();
 
 #ifdef __cplusplus
 }

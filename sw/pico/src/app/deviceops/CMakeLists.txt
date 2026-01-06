@@ -2,13 +2,16 @@
 add_library(prog_device INTERFACE)
 
 target_sources(prog_device INTERFACE
+    ihex.c
     prog_device.c
     pdops.c
+    pdusr.c
 )
 
 add_subdirectory(cmd)
 
 target_include_directories(prog_device INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}
 	${CMAKE_CURRENT_LIST_DIR}/include
 )
 

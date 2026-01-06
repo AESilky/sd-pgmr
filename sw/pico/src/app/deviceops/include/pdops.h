@@ -156,7 +156,7 @@ extern progdev_pwr_mode_t pdo_pwr_mode_get();
  * @return true The request succeeded
  * @return false The request was denied
  */
-extern bool pdo_request_pwr_on(bool on);
+extern bool pdo_pwr_request_on(bool on);
 
 /**
  * @brief Initialize the module. Must be called once/only-once before module use.

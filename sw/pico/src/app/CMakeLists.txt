@@ -3,6 +3,8 @@ add_library(app INTERFACE)
 
 target_sources(app INTERFACE
   app.c
+  appmenus.c
+  appops.c
 )
 
 add_subdirectory(deviceops)

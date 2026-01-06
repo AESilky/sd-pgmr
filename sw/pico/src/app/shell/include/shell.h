@@ -233,7 +233,7 @@ extern void shell_putc(uint8_t c);
  *
  * @param str The string to print.
  */
-extern void shell_puts(char* str);
+extern void shell_puts(const char* str);
 
 /**
  * @brief Register a control character handler.

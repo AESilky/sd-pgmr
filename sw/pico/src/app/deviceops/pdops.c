@@ -15,6 +15,7 @@
 #include "dbus.h"
 #include "system_defs.h"
 #include "debug_support.h"
+#include "include/util.h"
 
 #include "pico/stdlib.h"
 #include "pico/types.h"
@@ -85,7 +86,7 @@ static bool _pd_pwr_chk() {
         }
         else {
             // If the power is off and the mode allows, turn it on.
-            return (pdo_request_pwr_on(true));
+            return (pdo_pwr_request_on(true));
         }
     }
     return (true);
@@ -222,14 +223,14 @@ void pdo_pwr_mode(progdev_pwr_mode_t mode) {
     _pwrmode = mode;
     switch (_pwrmode) {
         case PDPWR_OFF:
-            pdo_request_pwr_on(false);
+            pdo_pwr_request_on(false);
             break;
         case PDPWR_ON:
-            pdo_request_pwr_on(true);
+            pdo_pwr_request_on(true);
             break;
         case PDPWR_AUTO:
             // Typically keep the power off
-            pdo_request_pwr_on(false);
+            pdo_pwr_request_on(false);
             break;
     }
 }
@@ -238,8 +239,8 @@ progdev_pwr_mode_t pdo_pwr_mode_get() {
     return (_pwrmode);
 }
 
-bool pdo_request_pwr_on(bool on) {
-    static bool _1st_pon;
+bool pdo_pwr_request_on(bool on) {
+    static bool _pwr_has_been_on;
     if (on == pdo_pwr_is_on()) {
         return (true);
     }
@@ -253,19 +254,21 @@ bool pdo_request_pwr_on(bool on) {
             dbus_wr(0);
             // Set DataBus IN
             dbus_set_in();
+            // Next time will be the first time powering the device on.
+            _pwr_has_been_on = false;
         }
         gpio_put(OP_DEVICE_PWR, on);
         if (on) {
             gpio_put(OP_DATA_WR, 1); // Set HIGH to avoid driving the PD Data Bus
             // Leave the DATA_LATCH, as taking it from LOW to HIGH latches data
-            sleep_ms(5); // Allow the device to have power for a few ms before access
-            if (!_1st_pon) {
-                // This is our first time powering the device on.
-                _1st_pon = true;
+            if (!_pwr_has_been_on) {
+                // Powering on from off.
+                sleep_ms(25); // Allow the device to have power for a few ms before access
+                _pwr_has_been_on = true;
                 // Do a single byte read, to flush garbage.
                 pdo_addr_set(0);
                 uint8_t d = pdo_data_get();
-                debug_printf("First device read: %2X\n", d);
+                UNUSED(d);
             }
         }
         retval = true;

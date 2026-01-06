@@ -30,6 +30,12 @@ typedef struct _display_info {
     display_attrs_t attrs;
 } display_info_t;
 
+typedef enum _display_justify {
+    DISP_JUSTIFY_LEFT = -1,
+    DISP_JUSTIFY_CENTER = 0,
+    DISP_JUSTIFY_RIGHT = 1,
+} display_justify_t;
+
 typedef struct _render_area {
     uint8_t start_col;
     uint8_t end_col;
@@ -91,7 +97,22 @@ extern void display_fill_page(uint8_t* buf, uint8_t fill_data, uint8_t page);
  */
 extern void display_font_test(void);
 
-extern const display_info_t display_info();
+extern const display_info_t* display_info();
+
+/**
+ * @brief Display an entire line (row) on the display. Allows justifying the text left/center/right.
+ * @ingroup display
+ *
+ * Displays a string on an entire line of the display, erasing any other content. The string is
+ * justified per the `j` parameter. If the entire string does not fit, the string is printed from
+ * the beginning for as much as will fit.
+ *
+ * @param row
+ * @param s
+ * @param j
+ * @param paint
+ */
+extern void display_line(unsigned short int row, const char* s, display_justify_t j, bool invert, bool underline, bool paint);
 
 /** @brief Paint the actual display screen
  *  \ingroup display

@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+#include "cmt_t.h"
+
 #include "pico/types.h" // 'uint' and other standard types
 
 #include <stdbool.h>
@@ -23,6 +25,27 @@ typedef struct mnu_dmenu_s_ dynmenu_t;
 typedef struct mnu_smenu_s_ smenu_t;
 typedef struct mnu_ditem_s_ dynmenu_item_t;
 typedef struct mnu_sitem_s_ smenu_item_t;
+
+/**
+ * @brief Dialog Context
+ * @ingroup menumgr
+ *
+ * Used to hold context for a dialog and its components.
+ */
+typedef struct dlg_cntx_ {
+    bool _active;
+    bool _focus;
+    uint8_t _row;
+    uint8_t _col;
+    uint8_t _maxdgts;
+    uint8_t _pos;
+    uint32_t _min;
+    uint32_t _max;
+    uint32_t* _val;
+    uint32_t _valorig;
+    msg_handler_fn _on_change;
+    struct dlg_cntx_* _next;
+} dlg_ctx_t;
 
 typedef enum mnu_menu_type_ {
     MENU_STATIC = 0,

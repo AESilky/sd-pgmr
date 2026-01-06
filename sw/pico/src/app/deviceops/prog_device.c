@@ -4,13 +4,9 @@
  * Maintains the image to be programmed and provides operations to load/modify/save it and
  * perform operations on the device to be programmed.
  *
- * Although the RP2350 has 520KB of RAM, we can't allocate a 512KB buffer to hold the largest
- * image that is supported for programming. That is because there needs to be room for a
- * stack for each of the cores, room for interrupt service tables, and other data that is
- * used by the code. Therefore, a 256KB buffer is allocated (so 128KB and 256KB devices can
- * be programmed without issue), and if a 512KB device is to be programmed, an SDCard must
- * be available, and the SDCard is used to contain a 'temp' file that holds the image while
- * operations are performed on the device.
+ * A 1K buffer is used, so an SDCard must be available to read the image to be programmed
+ * from. For loading from a host, the SDCard is used to contain a 'temp' file that holds
+ * the image while operations are performed on the device.
  *
  * Copyright 2023-25 AESilky
  * SPDX-License-Identifier: MIT License
@@ -21,8 +17,11 @@
 #include "pdops.h"
 
 #include "board.h"
+#include "display.h"
 #include "dskops.h"
+#include "ihex.h"
 #include "msgpost.h"
+#include "shell.h"
 #include "include/util.h"
 
 #include "pico/types.h"
@@ -32,6 +31,8 @@
 #include <stddef.h>
 #include <string.h>  // For memset()
 
+
+#define PD_TEMP_BIN_FILE_NAME "_tmp.bin"
 
 #define F_CMD_ERASE1 (0x80) // Requires a 2nd part for Sector or Whole Device
 #define F_CMD_ERASEPART (0x10)  // Requires 1st erase cmd, then this as 2nd cmd.
@@ -50,7 +51,7 @@
 
 static bool _initialized;
 
-static pd_op_status_t _method_status;
+static volatile pd_op_status_t _method_status;
 
 #define FDMFGID_AMD 0x01
 #define FDMFG_AMD "AMD"
@@ -136,6 +137,7 @@ static const md_info_t* mfgdev[] = {
 // Local/Private Method Declarations
 // ====================================================================
 
+static pd_op_status_t _pgm_byte(uint32_t addr, uint8_t b);
 
 // ====================================================================
 // Run-After/Delay/Sleep Methods
@@ -168,6 +170,7 @@ static void _handle_housekeeping(cmt_msg_t* msg) {
 
     cnt++;
 }
+
 
 
 // ====================================================================
@@ -234,6 +237,72 @@ static void _cmd_end() {
     pdo_data_set_at(0, 0xF0);
 }
 
+static pd_op_status_t _pgm_byte(uint32_t addr, uint8_t b) {
+    // Write a byte to the address
+    ERRORNO = 0;
+    _cmd_end(); // Just in case the device was left in a command state.
+    uint8_t v = pdo_data_get_from(addr);
+    if (ERRORNO != 0) {
+        _method_status = PD_NOT_READY;
+        goto _finally;
+    }
+    _method_status = PD_OP_OK;
+    if (v != b) {
+        if (v != MT_BYTE_VAL) {
+            _method_status = PD_NOT_ERASED;
+            goto _finally;
+        }
+        if (!_cmd_start(F_CMD_PROG)) {
+            _method_status = PD_NOT_READY;
+            goto _finally;
+        }
+        // If the power was on for the `pdo_...` call, we'll assume that it remains on.
+        pdo_data_set_at(addr, b);
+        // Get the device status
+        uint8_t v2 = _chk_wr_status(b);
+        if (v2 != b) {
+            _method_status = PD_VERIFY_FAILED;
+            goto _finally;
+        }
+    }
+_finally:
+    _cmd_end(); // Make sure we leave the device in a READ state
+    return (_method_status);
+}
+
+static bool _process_hex_to_bin(const char* hexfilename, const progstat_handler_fn progstatfn) {
+    FF_FILE* ffp = NULL;
+    FF_FILE* tfp = NULL;
+    FF_Stat_t fstat;
+    bool retval = false;
+    // Set up for a file error. We'll clear it once we are through the initial file ops.
+    ERRORNO = _method_status = PD_FILE_OP_ERR;
+    if (ff_stat(hexfilename, &fstat) != 0) {
+        // Couldn't stat the file, so return.
+        goto _finally;
+    }
+    // See if we can truncate or create the temp bin file.
+    if ((tfp = ff_fopen(PD_TEMP_BIN_FILE_NAME, "w")) == NULL) {
+        // Couldn't create/truncate file.
+        goto _finally;
+    }
+    if ((ffp = ff_fopen(hexfilename, "r")) == NULL) {
+        // Couldn't open file.
+        goto _finally;
+    }
+    ihp_stat_t ihstat = ih_to_bin(ffp, tfp, progstatfn);
+    retval = (ihstat == IHP_OK ? true : false);
+_finally:
+    if (tfp) {
+        ff_fclose(tfp);
+        tfp = NULL;
+    }
+    if (ffp) {
+        ff_fclose(ffp);
+        ffp = NULL;
+    }
+    return (retval);
+}
 
 // ====================================================================
 // Public Methods
@@ -327,21 +396,28 @@ bool pd_is_empty(const progstat_handler_fn progstatfn) {
     uint32_t addr = 0;
     while (addr < size) {
         for (uint32_t i = 0; i < ONE_K && addr < size; i++) {
+            if (progstatfn) {
+                if (progstatfn(PDS_PROC_BYTE, addr, 0, 0) != 0) {
+                    _method_status = PD_OP_CANCELLED;
+                    return (false);
+                }
+            }
             uint8_t v = pdo_data_get_from(addr++);
             if (v != MT_BYTE_VAL) {
+                if (progstatfn) {
+                    // Don't worry about 'cancel' - as we are done.
+                    progstatfn(PDS_NOT_ERASED, addr - 1, v, 0);
+                }
                 _method_status = PD_NOT_ERASED;
                 return (false);
             }
-        }
-        if (progstatfn) {
-            progstatfn(addr - 1);
         }
     }
     _method_status = PD_OP_OK;
     return (true);
 }
 
-bool pd_is_sect_empty(uint8_t sect) {
+bool pd_is_sect_empty(uint8_t sect, const progstat_handler_fn progstatfn) {
     // First, get the device info to make sure we know what it is.
     const md_info_t* info = pd_info();
     if (!info) {
@@ -369,7 +445,7 @@ pd_op_status_t pd_method_status() {
     return _method_status;
 }
 
-pd_op_status_t pd_prog_fb(const md_info_t* info, const char* filename, const progstat_handler_fn progstatfn) {
+pd_op_status_t pd_prog_file(const md_info_t* info, const char* filename, const progstat_handler_fn progstatfn) {
     FF_FILE* fp = NULL;
     FF_Stat_t fstat;
     // Set up for a file error. We'll clear it once we are through the initial file ops.
@@ -377,23 +453,55 @@ pd_op_status_t pd_prog_fb(const md_info_t* info, const char* filename, const pro
     if (ff_stat(filename, &fstat) != 0) {
         return (_method_status);
     }
-    // Get the info about the device
-    uint32_t pdsize = pd_size(info);
-    if (fstat.st_size > pdsize) {
-        ERRORNO = _method_status = PD_DEVICE_SIZE;
-        return (_method_status);
-    }
     fp = ff_fopen(filename, "r");
     if (!fp) {
         ERRORNO = _method_status = PD_FILE_OP_ERR;
         return (_method_status);
     }
-
+    // See if it is IntelHEX
+    bool ishexfile = ih_is_hexfile(fp);
+    if (ishexfile) {
+        // Yes, it's a Hex file, process it to binary and then proceed.
+        if (progstatfn) {
+            if (progstatfn(PDS_FILETYPE_HEX, 0, 0, 0) !=0) {
+                _method_status = PD_OP_CANCELLED;
+                goto _finally;
+            }
+        }
+        ff_fclose(fp);
+        fp = NULL;
+        if (!_process_hex_to_bin(filename, progstatfn)) {
+            goto _finally;
+        }
+        // Process the _tmp.bin file.
+        filename = PD_TEMP_BIN_FILE_NAME;
+        if (ff_stat(filename, &fstat) != 0) {
+            goto _finally;
+        }
+        fp = ff_fopen(filename, "r");
+        if (!fp) {
+            ERRORNO = _method_status = PD_FILE_OP_ERR;
+            return (_method_status);
+        }
+    }
+    else {
+        if (progstatfn) {
+            if (progstatfn(PDS_FILETYPE_BIN, 0, 0, 0) != 0) {
+                _method_status = PD_OP_CANCELLED;
+                goto _finally;
+            }
+        }
+    }
+    // Get the info about the device
+    uint32_t pdsize = pd_size(info);
+    if (fstat.st_size > pdsize) {
+        ERRORNO = _method_status = PD_DEVICE_SIZE;
+        goto _finally;
+    }
     // The file is open for reading and it will fit on the device.
     ERRORNO = _method_status = PD_PROG_FAILED;
     uint32_t addr = 0;
     uint32_t addrmax = pd_addrmax(info);
-    _cmd_end(); // Just in case the device was left in a command state.
     while (addr <= addrmax && addr < fstat.st_size) {
         // Read 'IMAGE_BUF_SIZE' (1K) from the file
         size_t br = ff_fread(&_imgbuf, sizeof(uint8_t), IMAGE_BUF_SIZE, fp);
@@ -403,31 +511,17 @@ pd_op_status_t pd_prog_fb(const md_info_t* info, const char* filename, const pro
             goto _finally;
         }
         for (int i = 0; i < br; i++) {
-            if (addr % ONE_K == 0 && progstatfn) {
-                progstatfn(addr);
-            }
-            // Write it
+            // Get a byte from the buffer and Write it
             uint8_t b = _imgbuf[i];
-            uint8_t v = pdo_data_get_from(addr);
-            if (ERRORNO != 0) {
-                goto _finally;
+            if (progstatfn) {
+                if (progstatfn(PDS_PROC_BYTE, addr, b, 0) != 0) {
+                    _method_status = PD_OP_CANCELLED;
+                    goto _finally;
+                }
             }
-            if (v != b) {
-                if (v != MT_BYTE_VAL) {
-                    ERRORNO = _method_status = PD_NOT_ERASED;
-                    goto _finally;
-                }
-                if (!_cmd_start(F_CMD_PROG)) {
-                    ERRORNO = _method_status = PD_NOT_READY;
-                    goto _finally;
-                }
-                // If the power was on for the `_cmd_start` call, we'll assume that it remains on.
-                pdo_data_set_at(addr, b);
-                // Get the device status
-                uint8_t v2 = _chk_wr_status(b);
-                if (v2 != b) {
-                    goto _finally;
-                }
+            if (_pgm_byte(addr, b) != PD_OP_OK) {
+                // _method_status is set by `_pgm_byte`
+                goto _finally;
             }
             addr++;
             if (addr > addrmax || addr == fstat.st_size) {
@@ -436,6 +530,55 @@ pd_op_status_t pd_prog_fb(const md_info_t* info, const char* filename, const pro
         }
     }
     if (addr == fstat.st_size) {
+        ERRORNO = _method_status = PD_OP_OK;
+    }
+_finally:
+    // Close the file to free resources
+    if (fp) {
+        ff_fclose(fp);
+    }
+    return (_method_status);
+}
+
+pd_op_status_t pd_read_to_fb(const md_info_t* info, const char* filename, const progstat_handler_fn progstatfn) {
+    FF_FILE* fp = NULL;
+    // Set up for a file error. We'll clear it once we are through the initial file ops.
+    ERRORNO = _method_status = PD_FILE_OP_ERR;
+    fp = ff_fopen(filename, "w"); // Create New or Truncate and open for Write
+    if (!fp) {
+        ERRORNO = _method_status = PD_FILE_OP_ERR;
+        return (_method_status);
+    }
+    // The file is open for writing.
+    ERRORNO = _method_status = PD_READ_FAILED;
+    uint32_t addr = 0;
+    uint32_t addrmax = pd_addrmax(info);
+    _cmd_end(); // Just in case the device was left in a command state.
+    while (addr <= addrmax) {
+        memset(_imgbuf, MT_BYTE_VAL, IMAGE_BUF_SIZE); // Fill with the empty value.
+        for (int i = 0; i < IMAGE_BUF_SIZE && addr <= addrmax; i++) {
+            // Read it
+            uint8_t v = pdo_data_get_from(addr);
+            if (ERRORNO != 0) {
+                goto _finally;
+            }
+            if (progstatfn) {
+                if (progstatfn(PDS_PROC_BYTE, addr, v, 0) != 0) {
+                    _method_status = PD_OP_CANCELLED;
+                    goto _finally;
+                }
+            }
+            *(_imgbuf + i) = v;
+            addr++;
+        }
+        // Write 'IMAGE_BUF_SIZE' (1K) to the file
+        size_t br = ff_fwrite(&_imgbuf, sizeof(uint8_t), IMAGE_BUF_SIZE, fp);
+        if (br != IMAGE_BUF_SIZE) {
+            ERRORNO = _method_status = PD_FILE_OP_ERR;
+            goto _finally;
+        }
+    }
+    if (addr == (addrmax+1)) {
         ERRORNO = _method_status = PD_OP_OK;
     }
 _finally:
@@ -501,12 +644,15 @@ pd_op_status_t pd_verify_fb(const md_info_t* info, const char* filename, uint32_
             goto _finally;
         }
         for (int i = 0; i < br; i++) {
-            if (addr % ONE_K == 0 && progstatfn) {
-                progstatfn(addr);
-            }
             // Verify it
             uint8_t b = _imgbuf[i];
             uint8_t v = pdo_data_get_from(addr);
+            if (progstatfn) {
+                if (progstatfn(PDS_PROC_BYTE, addr, v, b) != 0) {
+                    _method_status = PD_OP_CANCELLED;
+                    goto _finally;
+                }
+            }
             if (ERRORNO != 0) {
                 goto _finally;
             }
@@ -539,25 +685,11 @@ pd_op_status_t pd_write_value(const md_info_t* info, uint32_t addr, uint8_t valu
         _method_status = PD_ADDR_INVALID;
         return (0xFF);
     }
-    uint8_t v = pdo_data_get_from(addr);
-    if (v != MT_BYTE_VAL) {
-        _method_status = PD_NOT_ERASED;
-        return (_method_status);
-    }
-    _cmd_end(); // Just in case the device was left in a command state.
-    if (!_cmd_start(F_CMD_PROG)) {
-        _method_status = PD_NOT_READY;
-        return (_method_status);
-    }
-    // If the power was on for the `_cmd_start` call, we'll assume that
-    // it remains on.
-    pdo_data_set_at(addr, value);
-    // Get the device status
-    uint8_t v2 = _chk_wr_status(value);
-    _method_status = (v2 == value ? PD_OP_OK : PD_PROG_FAILED);
-
+    _pgm_byte(addr, value); // This sets `_method_status`
     return (_method_status);
 }
+
+
 
 // ====================================================================
 // Initialization/Start-Up Methods
@@ -569,5 +701,6 @@ void pd_minit() {
     }
     _clr_device_buf();
     pdo_minit();
+    ih_minit();
     _method_status = PD_OP_OK;
 }

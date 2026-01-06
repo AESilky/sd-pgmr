@@ -142,7 +142,6 @@ static int _exec_ls(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&_cmds_ls_entry, HELP_DISP_USAGE);
         goto _finally;
     }
-    bool all = false;
     if (argc > 1) {
         // The arg is '-a' to list all.
     }

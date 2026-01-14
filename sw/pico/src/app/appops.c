@@ -33,8 +33,8 @@ static char _fileselected[256];
  *
  * @param data Nothing important (can be pointer to anything needed)
  */
-static void _reactivate_menu(void* data) {
-    menu_display_current();
+static void _reactivate_main_menu(void* data) {
+    menu_display_main();
 }
 
 
@@ -59,7 +59,7 @@ static void _do_erase_all(cmt_msg_t* msg) {
 static void _on_dlg_cancel(cmt_msg_t* msg) {
     dlg_dismiss(_dialog);
     _dialog = NULL;
-    cmt_run_after_ms(80, _reactivate_menu, NULL);
+    cmt_run_after_ms(80, _reactivate_main_menu, NULL);
 }
 
 /**
@@ -91,7 +91,18 @@ _finally:
 }
 
 /**
- * @brief Handle cancel dialog.
+ * @brief Handle Program File Select dialog.
+ *
+ * @param msg .
+ */
+static void _on_program_fs(cmt_msg_t* msg) {
+    dlg_dismiss(_dialog);
+    _dialog = NULL;
+    pdusr_prog(_fileselected, false);
+}
+
+/**
+ * @brief Handle Verify File Select dialog.
  *
  * @param msg .
  */
@@ -99,7 +110,6 @@ static void _on_verify_fs(cmt_msg_t* msg) {
     dlg_dismiss(_dialog);
     _dialog = NULL;
     pdusr_verify(_fileselected, false);
-    //cmt_run_after_ms(80, _reactivate_menu, NULL);
 }
 
 
@@ -139,6 +149,22 @@ bool appop_handle_empty(const smenu_t* menu, const smenu_item_t* item) {
 bool appop_handle_info(const smenu_t* menu, const smenu_item_t* item) {
     pdusr_info(false, false);
     return (false);
+}
+
+bool appop_handle_program(const smenu_t* menu, const smenu_item_t* item) {
+    // We need a file name to verify against.
+    bool retval = false;
+    const md_info_t* info = pdusr_info(true, false);
+    if (!info) {
+        retval = true;
+        goto _finally;
+    }
+    // We need a file name
+    menu_deactivate();
+    display_clear(true);
+    _dialog = dlg_file_pick(_on_program_fs, _on_dlg_cancel, _fileselected);
+_finally:
+    return (retval);
 }
 
 bool appop_handle_verify(const smenu_t* menu, const smenu_item_t* item) {

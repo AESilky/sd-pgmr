@@ -45,7 +45,7 @@ static bool _shell_out;
 // ====================================================================
 
 static void _on_dlg_cancel(cmt_msg_t* msg);
-static void _reactivate_menu(void* data);
+static void _reactivate_main_menu(void* data);
 
 
 // ====================================================================
@@ -129,8 +129,8 @@ static void _op_enter(const char* procstr, bool shellout) {
  *
  * @param data Nothing important (can be pointer to anything needed)
  */
-static void _reactivate_menu(void* data) {
-    menu_display_current();
+static void _reactivate_main_menu(void* data) {
+    menu_display_main();
 }
 
 
@@ -146,7 +146,7 @@ static void _reactivate_menu(void* data) {
 static void _on_dlg_cancel(cmt_msg_t* msg) {
     dlg_dismiss(_dialog);
     _dialog = NULL;
-    cmt_run_after_ms(80, _reactivate_menu, NULL);
+    cmt_run_after_ms(80, _reactivate_main_menu, NULL);
 }
 
 /**
@@ -581,7 +581,7 @@ pd_op_status_t pdusr_verify(const char* filename, bool shellout) {
         else if (pdos == PD_VERIFY_FAILED) {
             shell_printferr("Device did not verify. Mismatch at %05X\n", lastaddr);
             display_line(2, "Mismatch", DISP_JUSTIFY_LEFT, false, false, NoPaint);
-            sprintf(buf, "Location: %05X", lastaddr);
+            sprintf(buf, "Loc: %05X", lastaddr);
             display_line(3, buf, DISP_JUSTIFY_LEFT, false, false, Paint);
         }
         else if (pdos != PD_OP_CANCELLED) {

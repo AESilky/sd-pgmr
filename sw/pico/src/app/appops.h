@@ -24,6 +24,8 @@ extern bool appop_handle_erasesect(const smenu_t* menu, const smenu_item_t* item
 
 extern bool appop_handle_info(const smenu_t* menu, const smenu_item_t* item);
 
+extern bool appop_handle_program(const smenu_t* menu, const smenu_item_t* item);
+
 extern bool appop_handle_verify(const smenu_t* menu, const smenu_item_t* item);
 
 /**

@@ -45,7 +45,7 @@ static bool _mm_handle_item(const smenu_t* menu, const smenu_item_t* item);
 // Main Programmer Menu (static menu)
 static const smenu_item_t _mm_item1 = { .label = "Info", .handler = appop_handle_info, .data = (void*)0 };
 static const smenu_item_t _mm_item2 = { .label = "Is Blank", .handler = appop_handle_empty, .data = (void*)1 };
-static const smenu_item_t _mm_item3 = { .label = "Program", .handler = _mm_handle_item, .data = (void*)2 };
+static const smenu_item_t _mm_item3 = { .label = "Program", .handler = appop_handle_program, .data = (void*)2 };
 static const smenu_item_t _mm_item4 = { .label = "Verify", .handler = appop_handle_verify, .data = (void*)3 };
 static const smenu_item_t _mm_item5 = { .label = "Erase Sect", .handler = appop_handle_erasesect, .data = (void*)4 };
 static const smenu_item_t _mm_item6 = { .label = "Erase Device", .handler = appop_handle_eraseall, .data = (void*)5 };

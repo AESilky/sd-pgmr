@@ -252,10 +252,7 @@ static void _handle_switch_action(cmt_msg_t* msg) {
             if (longpress) {
                 if (_menu_active) {
                     // Move to the Main Menu
-                    if (_main_menu) {
-                        _pop_to_menu(_main_menu);
-                        menu_display_current();
-                    }
+                    menu_display_main();
                 }
             }
             else if (!pressed) {
@@ -691,7 +688,7 @@ static void _push_menu(const mnu_t* menu) {
     if (_menus_root == NULL) {
         _menus_root = si;
         _menus_head = si;
-        // This is the first menu, set it as the root.
+        // This is the first menu, set it as the 'MAIN Menu'.
         _main_menu = menu;
     }
     else {
@@ -872,6 +869,13 @@ void menu_display_current() {
         _show_current_smenu(false);
     }
     _menu_active = true;
+}
+
+void menu_display_main() {
+    if (_main_menu) {
+        _pop_to_menu(_main_menu);
+        menu_display_current();
+    }
 }
 
 void smenu_enter(const smenu_t* menu) {

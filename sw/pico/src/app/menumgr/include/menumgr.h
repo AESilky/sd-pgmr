@@ -34,6 +34,14 @@ extern void menu_deactivate();
  */
 extern void menu_display_current();
 
+/**
+ * @brief Display (reactivate) the 'Main' menu. Shows the Main (first) menu if one
+ *      has been established.
+ * @ingroup menumgr
+ *
+ */
+extern void menu_display_main();
+
 extern void smenu_enter(const smenu_t* menu);
 
 extern void dlg_dismiss(dlg_ctx_t* cntx);

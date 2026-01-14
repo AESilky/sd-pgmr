@@ -347,9 +347,9 @@ _hex_proc_done:
 // ====================================================================
 
 
-void ih_minit() {
+void ih_modinit() {
     if (_initialized) {
-        board_panic("!!! ihex_minit: Called more than once !!!");
+        board_panic("!!! ihex_modinit: Called more than once !!!");
     }
     _initialized = true;
 }

@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-extern void diskcmds_minit(void);
+extern void diskcmds_modinit(void);
 
 #ifdef __cplusplus
 }

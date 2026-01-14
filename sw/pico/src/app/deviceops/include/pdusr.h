@@ -129,7 +129,7 @@ extern pd_op_status_t pdusr_verify(const char* filename, bool shellout);
  * @brief Initialize the module. Must be called once/only-once before module use.
  *
  */
-extern void pdusr_minit();
+extern void pdusr_modinit();
 
 #ifdef __cplusplus
 }

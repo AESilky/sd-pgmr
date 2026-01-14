@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-extern void pdcmds_minit(void);
+extern void pdcmds_modinit(void);
 
 #ifdef __cplusplus
 }

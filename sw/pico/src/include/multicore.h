@@ -102,7 +102,7 @@ extern void start_core1();
  * @param no_qadd_panic True to avoid a panic if queue add fails. Used during debugging,
  *                      as single-step can cause a buildup of messages.
  */
-extern void multicore_minit(bool no_qadd_panic);
+extern void multicore_modinit(bool no_qadd_panic);
 
 #ifdef __cplusplus
     }

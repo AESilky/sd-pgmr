@@ -295,7 +295,7 @@ extern pd_op_status_t pd_write_value(const md_info_t* info, uint32_t addr, uint8
  * @ingroup device
  *
  */
-extern void pd_minit();
+extern void pd_modinit();
 
 #ifdef __cplusplus
 }

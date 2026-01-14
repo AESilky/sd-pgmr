@@ -36,6 +36,7 @@ static volatile bool _initialized;
 
 static const display_info_t* _disp_info;
 static int _disp_ll;
+static dlg_ctx_t* _dialog;
 static const char* _process;
 static bool _shell_out;
 
@@ -43,6 +44,7 @@ static bool _shell_out;
 // Local/Private Method Declarations
 // ====================================================================
 
+static void _on_dlg_cancel(cmt_msg_t* msg);
 static void _reactivate_menu(void* data);
 
 
@@ -101,8 +103,8 @@ static void _op_leave() {
     // Try to turn the power off
     pdo_pwr_request_on(false);
     _shell_out = false;
-    // Delay and reenable the menu.
-    cmt_run_after_ms(8000, _reactivate_menu, NULL);
+    // Create a blank cancel dialog to allow the user to exit the display early.
+    _dialog = dlg_confirm_notext(8000, _on_dlg_cancel, _on_dlg_cancel);
 }
 
 static void _op_enter(const char* procstr, bool shellout) {
@@ -135,6 +137,17 @@ static void _reactivate_menu(void* data) {
 // ====================================================================
 // Message Handler Methods
 // ====================================================================
+
+/**
+ * @brief Handle cancel dialog.
+ *
+ * @param msg .
+ */
+static void _on_dlg_cancel(cmt_msg_t* msg) {
+    dlg_dismiss(_dialog);
+    _dialog = NULL;
+    cmt_run_after_ms(80, _reactivate_menu, NULL);
+}
 
 /**
  * @brief Handle our Housekeeping tasks. This is triggered every ~16ms.
@@ -604,9 +617,9 @@ bool pdusr_pwr_request_on(bool on, bool shellout) {
 // ====================================================================
 
 
-void pdusr_minit() {
+void pdusr_modinit() {
     if (_initialized) {
-        board_panic("!!! pdusr_minit: Called more than once !!!");
+        board_panic("!!! pdusr_modinit: Called more than once !!!");
     }
     _initialized = true;
 

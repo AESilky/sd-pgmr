@@ -163,7 +163,7 @@ extern bool pdo_pwr_request_on(bool on);
  * @ingroup ProgDev
  *
  */
-extern void pdo_minit();
+extern void pdo_modinit();
 
 #ifdef __cplusplus
 }

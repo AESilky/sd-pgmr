@@ -38,13 +38,27 @@ extern void smenu_enter(const smenu_t* menu);
 
 extern void dlg_dismiss(dlg_ctx_t* cntx);
 
-extern dlg_ctx_t* dlg_num_input(uint8_t row, uint8_t col, uint32_t* val, uint32_t min, uint32_t max, msg_handler_fn on_change);
+extern dlg_ctx_t* dlg_confirm_notext(int32_t ms, msg_handler_fn on_enter, msg_handler_fn on_cancel);
+
+/**
+ * @brief Display a file picker.
+ * @ingroup menumgr
+ *
+ *
+ * @param on_enter Msg Function to be called when a file is selected.
+ * @param on_cancel Msg Function to be called if the dialog is cancelled.
+ * @param fselbuf Buffer to store the selected file name. Must be 256 bytes.
+ * @return dlg_ctx_t* Dialog pointer for the (now) active dialog.
+ */
+extern dlg_ctx_t* dlg_file_pick(msg_handler_fn on_enter, msg_handler_fn on_cancel, char* fselbuf);
+
+extern dlg_ctx_t* dlg_num_input(uint8_t row, uint8_t col, uint32_t* val, uint32_t min, uint32_t max, msg_handler_fn on_enter, msg_handler_fn on_cancel);
 
 /**
  * @brief Initialize the module. Must be called once/only-once before module use.
  *
  */
-extern void menumgr_minit();
+extern void menumgr_modinit();
 
 #ifdef __cplusplus
 }

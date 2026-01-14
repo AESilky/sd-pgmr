@@ -1019,7 +1019,7 @@ const cmd_handler_entry_t cmds_devwrval_entry = {
 };
 
 
-void pdcmds_minit(void) {
+void pdcmds_modinit(void) {
     cmd_register(&cmds_addrtosect_entry);
     cmd_register(&cmds_devaddr_entry);
     cmd_register(&cmds_devaddr_n_entry);

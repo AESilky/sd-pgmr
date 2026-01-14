@@ -39,7 +39,7 @@ extern ihp_stat_t ih_to_bin(FF_FILE* hexfile, FF_FILE* binfile, const progstat_h
  * @ingroup device
  *
  */
-extern void ih_minit();
+extern void ih_modinit();
 
 #ifdef __cplusplus
 }

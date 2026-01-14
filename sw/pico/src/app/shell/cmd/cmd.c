@@ -549,7 +549,7 @@ int cmd_register(const cmd_handler_entry_t* cmd) {
 }
 
 
-void cmd_minit() {
+void cmd_modinit() {
     _cmd_state = CMD_SNOOZING;
     //
     // Register our commands.

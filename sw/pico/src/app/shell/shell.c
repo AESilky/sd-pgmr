@@ -564,27 +564,27 @@ void shell_start() {
 
     _term_init();
     term_text_normal();
-    cmd_minit();
+    cmd_modinit();
 
     // Initialize all of the modules that have commands
     //
-    dbcmds_minit();
-    dbuscmds_minit();   // Data Bus shell commands
-    diskcmds_minit();   // Disk (SD Card) commands
-    pdcmds_minit();     // Programmable Device (Flash) shell commands
-    picocmds_minit();   // Pico Util/Control shell commands
+    dbcmds_modinit();
+    dbuscmds_modinit();   // Data Bus shell commands
+    diskcmds_modinit();   // Disk (SD Card) commands
+    pdcmds_modinit();     // Programmable Device (Flash) shell commands
+    picocmds_modinit();   // Pico Util/Control shell commands
 
     // Activate the command processor
     cmd_activate(true);
 }
 
-void shell_minit() {
+void shell_modinit() {
     if (_initialized) {
         board_panic("!!! shell_modinit already called. !!!");
     }
     _initialized = true;
 
-    term_minit();
+    term_modinit();
     _esc_collecting = ESC_NOT_IN_PROGRESS;
     //
     // Register our message handler

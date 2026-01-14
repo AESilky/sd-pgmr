@@ -138,7 +138,7 @@ int board_init() {
     // The PWM is used for a recurring interrupt in CMT. It will initialize it.
 
     // Initialize the Data Bus
-    dbus_minit();
+    dbus_modinit();
 
     return(retval);
 }

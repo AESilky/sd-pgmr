@@ -11,6 +11,7 @@
 
 #include "app.h"
 #include "appmenus.h"
+#include "appops.h"
 #include "dskops.h"
 
 #include "board.h"
@@ -84,7 +85,7 @@ int ERRORNO;    // Primarily used by the Shell and Shell Commands. Globally avai
 static void _clear_and_enable_input(void* data) {
     display_clear(Paint);
     // Initialize the shell
-    shell_minit();
+    shell_modinit();
     //
     // Start the shell
     shell_start();
@@ -134,7 +135,7 @@ static void _handle_rotary_change(cmt_msg_t* msg) {
 }
 
 static void _handle_switch_action(cmt_msg_t* msg) {
-    // Handle switch actions for the menuing
+    // Handle switch actions for debugging
     //
     if (debug_mode_enabled()) {
         switch_id_t sw = msg->data.sw_action.switch_id;
@@ -185,7 +186,7 @@ static void _show_psa(proc_status_accum_t* psa, int corenum) {
 // Initialization and Maintainence Functions
 // ############################################################################
 //
-static void _minit(void) {
+static void _modinit(void) {
     static bool _initialized = false;
 
     if (_initialized) {
@@ -194,8 +195,10 @@ static void _minit(void) {
     _initialized = true;
 
     setlocale(LC_NUMERIC, "en_US.UTF-8"); // Set the locale
+    // App Menus
+    appmenu_modinit();
     // Programmable Device (Flash) module
-    pd_minit();
+    pd_modinit();
 
     // Add our message handlers
     cmt_msg_hdlr_add(MSG_ROTARY_CHG, _handle_rotary_change);
@@ -203,13 +206,13 @@ static void _minit(void) {
     cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_app_housekeeping);
 
     // Initialize the Menus and Menu Manager
-    appops_minit();
-    menumgr_minit();
+    appops_modinit();
+    menumgr_modinit();
 }
 
 void start_app(void) {
     // Initialize modules used by the APP
-    _minit();
+    _modinit();
 
     // Setup the screen.
     display_clear(Paint);

@@ -163,7 +163,7 @@ FRESULT dsk_unmount_sd() {
 // Initialization/Start-Up Methods
 // ====================================================================
 
-void dskops_minit() {
+void dskops_modinit() {
     if (_initialized) {
         board_panic("!!! dskops_module_init: Called more than once !!!");
     }

@@ -89,7 +89,7 @@ static void _display_clear() {
     }
 }
 
-static void _oled1106_minit(bool invert) {
+static void _oled1106_modinit(bool invert) {
     // Some of these commands are not strictly necessary as the reset
     // process defaults to some of these but they are all included
     // rather than rely on POR.
@@ -637,9 +637,9 @@ void display_font_test(void) {
 /*
  * This must be called before using the display.
  */
-void display_minit(bool invert) {
+void display_modinit(bool invert) {
     if (_initialized) {
-        board_panic("!!! display_minit called more than once !!!\n");
+        board_panic("!!! display_modinit called more than once !!!\n");
     }
     _initialized = true;
     // Setup the Display specific GPIO
@@ -658,7 +658,7 @@ void display_minit(bool invert) {
 
 
     // run through the complete initialization process
-    _oled1106_minit(invert);
+    _oled1106_modinit(invert);
     display_clear(true);
 }
 

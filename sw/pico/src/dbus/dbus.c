@@ -66,9 +66,9 @@ void dbus_wr(uint8_t data) {
 // ====================================================================
 
 
-void dbus_minit() {
+void dbus_modinit() {
     if (_initialized) {
-        board_panic("!!! dbus_minit: Called more than once !!!");
+        board_panic("!!! dbus_modinit: Called more than once !!!");
     }
     // Data RD, WR, and DataLatch
     gpio_set_function(OP_DATA_RD, GPIO_FUNC_SIO);

@@ -695,12 +695,12 @@ pd_op_status_t pd_write_value(const md_info_t* info, uint32_t addr, uint8_t valu
 // Initialization/Start-Up Methods
 // ====================================================================
 
-void pd_minit() {
+void pd_modinit() {
     if (_initialized) {
         board_panic("!!! pd_module_init: Called more than once !!!");
     }
     _clr_device_buf();
-    pdo_minit();
-    ih_minit();
+    pdo_modinit();
+    ih_modinit();
     _method_status = PD_OP_OK;
 }

@@ -279,7 +279,7 @@ bool pdo_pwr_request_on(bool on) {
 
 
 
-void pdo_minit() {
+void pdo_modinit() {
     if (_initialized) {
         board_panic("!!! pdo_module_init called multiple times !!!");
     }

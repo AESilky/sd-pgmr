@@ -44,6 +44,6 @@ static int _dbcmd(int argc, char** argv, const char* unparsed) {
 }
 
 
-void dbcmds_minit() {
+void dbcmds_modinit() {
     cmd_register(&cmd_debug_entry);
 }

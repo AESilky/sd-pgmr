@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-extern void picocmds_minit(void);
+extern void picocmds_modinit(void);
 
 #ifdef __cplusplus
 }

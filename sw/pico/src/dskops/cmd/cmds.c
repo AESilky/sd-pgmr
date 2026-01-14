@@ -173,9 +173,9 @@ static const cmd_handler_entry_t _cmds_ls_entry = {
 };
 
 
-void diskcmds_minit(void) {
+void diskcmds_modinit(void) {
     if (_initialized) {
-        board_panic("!!! diskcmds_minit: Called more than once !!!");
+        board_panic("!!! diskcmds_modinit: Called more than once !!!");
     }
     _initialized = true;
 

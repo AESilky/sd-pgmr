@@ -189,7 +189,7 @@ const cmd_handler_entry_t cmds_dbus_wr_entry = {
 
 
 
-void dbuscmds_minit(void) {
+void dbuscmds_modinit(void) {
     cmd_register(&cmds_dbus_data_entry);
     cmd_register(&cmds_dbus_dir_entry);
     cmd_register(&cmds_dbus_dlatch_entry);

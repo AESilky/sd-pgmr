@@ -58,10 +58,10 @@ int main() {
     sleep_ms(100);
 
     // Initialize the multicore subsystem
-    multicore_minit(debug_mode_enabled());
+    multicore_modinit(debug_mode_enabled());
 
     // Initialize the Cooperative Multi-Tasking subsystem
-    cmt_minit();
+    cmt_modinit();
 
     // Launch the Hardware Runtime (core-0 (endless) Message Dispatching Loop).
     // The HWRT starts the appropriate secondary operations (core-1 message loop)

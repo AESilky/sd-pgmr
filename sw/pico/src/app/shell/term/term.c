@@ -282,7 +282,7 @@ int term_getc(void) {
 /**
  * @note This must be called while `sleep` is allowed.
  */
-void term_minit() {
+void term_modinit() {
     // Input handler...
     stdio_set_chars_available_callback(_stdio_chars_available, NULL);   // We can pass a parameter if we want
     // Terminal type and screen size...

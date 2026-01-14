@@ -295,14 +295,14 @@ extern void shell_use_cmd_color();
  * @brief Build and start the Interactive Shell (including the Command Processor)
  * @ingroup ui
  *
- * This runs the shell. The Shell Module must have been initialized via a call to `shell_minit`.
+ * This runs the shell. The Shell Module must have been initialized via a call to `shell_modinit`.
  *
- * @see shell_minit
+ * @see shell_modinit
  *
  */
 extern void shell_start();
 
-extern void shell_minit();
+extern void shell_modinit();
 
 #ifdef __cplusplus
     }

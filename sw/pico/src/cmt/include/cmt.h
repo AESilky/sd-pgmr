@@ -293,7 +293,7 @@ extern void message_loop(msg_handler_fn fstart);
  * @brief Initialize the Cooperative Multi-Tasking system.
  * @ingroup cmt
  */
-extern void cmt_minit();
+extern void cmt_modinit();
 
 #ifdef __cplusplus
     }

@@ -83,8 +83,8 @@ static void _handle_apps_started(cmt_msg_t* msg) {
 
     // Initialize other modules that the RT oversees.
     //
-    re_pbsw_minit();  // Rotary Encoder Push-Button Switch module
-    re_minit();       // Rotary Encoder (knob) module
+    re_pbsw_modinit();  // Rotary Encoder Push-Button Switch module
+    re_modinit();       // Rotary Encoder (knob) module
     gpio_set_irq_enabled_with_callback(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
     gpio_set_irq_enabled(IRQ_CMD_ATTN_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 }
@@ -209,7 +209,7 @@ void _gpio_irq_handler(uint gpio, uint32_t events) {
 }
 
 static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
-    // The GPIO needs to be low for at least 80ms to be considered a button press.
+    // The GPIO needs to be low for at least 8ms to be considered a button press.
     if (events & GPIO_IRQ_EDGE_FALL) {
         // We control the ATTN flag without use of messages, as routines might
         // not be checking messages.
@@ -228,7 +228,7 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
             msg.data.sw_action.pressed = true;
             msg.data.sw_action.longpress = false;
             msg.data.sw_action.repeat = false;
-            schedule_msg_in_ms(80, &msg);
+            schedule_msg_in_ms(8, &msg);
         }
     }
     if (events & GPIO_IRQ_EDGE_RISE) {
@@ -318,10 +318,10 @@ static void _hwrt_started(cmt_msg_t* msg) {
     spi_init(SPI_SD_DISP_DEVICE, SPI_SLOW_SPEED);
 
     // Disk Operations
-    dskops_minit();
+    dskops_modinit();
 
     // Display
-    display_minit(true); // Initialize, and invert the display (as it is mounted upside down)
+    display_modinit(true); // Initialize, and invert the display (as it is mounted upside down)
 
     // Let the USB subsystem have some time to come up, then
     // Switch the console over to the USB

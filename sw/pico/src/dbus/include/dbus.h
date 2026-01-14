@@ -73,7 +73,7 @@ extern void dbus_wr(uint8_t data);
  * @brief Initialize the module. Must be called once/only-once before module use.
  *
  */
-extern void dbus_minit();
+extern void dbus_modinit();
 
 #ifdef __cplusplus
 }

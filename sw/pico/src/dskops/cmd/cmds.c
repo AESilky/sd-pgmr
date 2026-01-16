@@ -142,7 +142,6 @@ static int _exec_ls(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&_cmds_ls_entry, HELP_DISP_USAGE);
         goto _finally;
     }
-    bool all = false;
     if (argc > 1) {
         // The arg is '-a' to list all.
     }
@@ -174,9 +173,9 @@ static const cmd_handler_entry_t _cmds_ls_entry = {
 };
 
 
-void diskcmds_minit(void) {
+void diskcmds_modinit(void) {
     if (_initialized) {
-        board_panic("!!! diskcmds_minit: Called more than once !!!");
+        board_panic("!!! diskcmds_modinit: Called more than once !!!");
     }
     _initialized = true;
 

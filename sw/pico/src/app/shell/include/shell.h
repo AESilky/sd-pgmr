@@ -14,7 +14,7 @@ extern "C" {
 #include "cmt.h"
 #include "../term/term.h"
 
-#define shell_NAME_VERSION "AES v0.1"
+#define shell_NAME_VERSION "SD Flash Programmer"
 
 
 // NOTE: Terminal line and column numbers are 1-based.
@@ -233,7 +233,7 @@ extern void shell_putc(uint8_t c);
  *
  * @param str The string to print.
  */
-extern void shell_puts(char* str);
+extern void shell_puts(const char* str);
 
 /**
  * @brief Register a control character handler.
@@ -295,14 +295,14 @@ extern void shell_use_cmd_color();
  * @brief Build and start the Interactive Shell (including the Command Processor)
  * @ingroup ui
  *
- * This runs the shell. The Shell Module must have been initialized via a call to `shell_minit`.
+ * This runs the shell. The Shell Module must have been initialized via a call to `shell_modinit`.
  *
- * @see shell_minit
+ * @see shell_modinit
  *
  */
 extern void shell_start();
 
-extern void shell_minit();
+extern void shell_modinit();
 
 #ifdef __cplusplus
     }

@@ -96,7 +96,7 @@ static const cmd_handler_entry_t _cmd_proc_status_entry = {
 
 // Internal (non-command) declarations
 
-static void _hook_keypress();
+static void _set_wakeup_hook();
 static void _wakeup();
 
 
@@ -235,7 +235,7 @@ static int _cmd_keys(int argc, char** argv, const char* unparsed) {
         return (-1);
     }
     shell_puts("':'            : While busy, enters command mode for one command.\n");
-    shell_puts("^C             : Reset SD Card (use after disk change.\n");
+    shell_puts("^C             : Reset SD Card (use after disk change).\n");
     shell_puts("^H             : Backspace (same as Backspace key on most terminals).\n");
     shell_puts("^K or Up-Arrow : Recall last command.\n");
     shell_puts("^R             : Refresh the terminal screen.\n");
@@ -341,12 +341,7 @@ static void _notified_of_keypress() {
         ci = term_getc();
     }
     // If we get here we need to re-register so we are notified when another character is ready.
-    _hook_keypress();
-}
-
-static void _hook_keypress() {
-    // Look for our wakeup char being sent from the terminal.
-    term_register_notify_on_input(_notified_of_keypress);
+    _set_wakeup_hook();
 }
 
 static void _process_line(char* line) {
@@ -405,6 +400,11 @@ static void _process_line(char* line) {
     }
 }
 
+static void _set_wakeup_hook() {
+    // Look for our wakeup char being sent from the terminal.
+    term_register_notify_on_input(_notified_of_keypress);
+}
+
 static void _wakeup() {
     // Wakeup the command processor. Change state to building line.
     _cmd_state = CMD_COLLECTING_LINE;
@@ -421,7 +421,7 @@ static void _wakeup() {
 // Public functions
 
 /**
- * This is typically called by the application when to wants the user to have the
+ * This is typically called by the application when it wants the user to have the
  * command processor (true) or when it needs to collect and process input (false).
  */
 extern void cmd_activate(bool activate) {
@@ -432,7 +432,7 @@ extern void cmd_activate(bool activate) {
         if (CMD_SNOOZING != _cmd_state) {
             // Cancel any inprocess 'getline'
             shell_getline_cancel(_notified_of_keypress);
-            // Put the terminal back to 'code' state
+            // Put the terminal back to 'app' state
             term_cursor_on(false);
             shell_use_output_color();
             // go back to Snoozing
@@ -549,7 +549,7 @@ int cmd_register(const cmd_handler_entry_t* cmd) {
 }
 
 
-void cmd_minit() {
+void cmd_modinit() {
     _cmd_state = CMD_SNOOZING;
     //
     // Register our commands.
@@ -567,7 +567,4 @@ void cmd_minit() {
     //
     // Register our message handler
     cmt_msg_hdlr_add(MSG_CMD_KEY_PRESSED, _cmd_attn_handler);
-    //
-    // Hook keypress looking for a ':' to wake us up.
-    _hook_keypress();
 }

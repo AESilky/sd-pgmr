@@ -64,7 +64,7 @@ extern const cmd_state_t cmd_get_state();
  * @brief Initialize the command processor.
  * @ingroup ui
  */
-extern void cmd_minit(void);
+extern void cmd_modinit(void);
 
 #ifdef __cplusplus
     }

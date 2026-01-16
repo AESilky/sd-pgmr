@@ -12,7 +12,9 @@
 
 #include "board.h"
 #include "system_defs.h"
+#include "include/util.h"
 
+#include <stdio.h>
 #include <string.h>
 
 // commands (see datasheet)
@@ -87,7 +89,7 @@ static void _display_clear() {
     }
 }
 
-static void _oled1106_minit(bool invert) {
+static void _oled1106_modinit(bool invert) {
     // Some of these commands are not strictly necessary as the reset
     // process defaults to some of these but they are all included
     // rather than rely on POR.
@@ -356,8 +358,23 @@ void display_char(unsigned short int row, unsigned short int col, const char c, 
     }
 }
 
-const display_info_t display_info() {
-    return _dinfo;
+const display_info_t* display_info() {
+    return &_dinfo;
+}
+
+void display_line(unsigned short int row, const char* s, display_justify_t j, bool invert, bool underline, bool paint) {
+    char buf[_dinfo.cols + 1];
+    buf[_dinfo.cols] = '\0';
+    int sl = strlen(s);
+    int pad = constrain((_dinfo.cols - sl), 0, _dinfo.cols);
+    if (pad) {
+        // Padding is needed - set buffer to spaces
+        memset(buf, ' ', _dinfo.cols);
+    }
+    int pl = (j == DISP_JUSTIFY_LEFT ? 0 : j == DISP_JUSTIFY_RIGHT ? pad : pad/2);
+    memcpy(buf+pl, s, sl); // Not using `strcpynt` as we've terminated as needed
+    display_row_clear(row, false);
+    display_string(row, 0, buf, invert, underline, paint);
 }
 
 /** @brief Paint the physical screen
@@ -620,9 +637,9 @@ void display_font_test(void) {
 /*
  * This must be called before using the display.
  */
-void display_minit(bool invert) {
+void display_modinit(bool invert) {
     if (_initialized) {
-        board_panic("!!! display_minit called more than once !!!\n");
+        board_panic("!!! display_modinit called more than once !!!\n");
     }
     _initialized = true;
     // Setup the Display specific GPIO
@@ -641,7 +658,7 @@ void display_minit(bool invert) {
 
 
     // run through the complete initialization process
-    _oled1106_minit(invert);
+    _oled1106_modinit(invert);
     display_clear(true);
 }
 

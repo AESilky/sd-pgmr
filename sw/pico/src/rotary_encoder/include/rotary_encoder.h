@@ -62,7 +62,7 @@ extern void re_turn_handler(uint phase);
  * @brief Initialize the rotary encoder decode module.
  * @ingroup ui
  */
-extern void re_minit();
+extern void re_modinit();
 
 #ifdef __cplusplus
     }

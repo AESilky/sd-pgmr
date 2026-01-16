@@ -15,6 +15,7 @@ extern "C" {
 #endif
 
 #include "app_t.h"
+#include "menumgr_t.h"
 
 /**
  * @brief Starts the APP.

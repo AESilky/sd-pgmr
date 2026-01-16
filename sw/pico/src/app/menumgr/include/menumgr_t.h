@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+#include "cmt_t.h"
+
 #include "pico/types.h" // 'uint' and other standard types
 
 #include <stdbool.h>
@@ -23,6 +25,29 @@ typedef struct mnu_dmenu_s_ dynmenu_t;
 typedef struct mnu_smenu_s_ smenu_t;
 typedef struct mnu_ditem_s_ dynmenu_item_t;
 typedef struct mnu_sitem_s_ smenu_item_t;
+
+/**
+ * @brief Dialog Context
+ * @ingroup menumgr
+ *
+ * Used to hold context for a dialog and its components.
+ */
+typedef struct dlg_cntx_ {
+    bool _active;
+    bool _focus;
+    uint8_t _row;
+    uint8_t _col;
+    uint8_t _maxdgts;
+    uint8_t _pos;
+    uint32_t _min;
+    uint32_t _max;
+    uint32_t* _val;
+    uint32_t _valorig;
+    int32_t _toms; // Timeout milliseconds
+    msg_handler_fn _on_cancel;
+    msg_handler_fn _on_enter;
+    struct dlg_cntx_* _next;
+} dlg_ctx_t;
 
 typedef enum mnu_menu_type_ {
     MENU_STATIC = 0,
@@ -35,13 +60,20 @@ typedef enum mnu_itemreq_type_ {
 } menu_itemreq_t;
 
 /**
- * @brief Function prototype for a Dynamic Menu `get_title` function.
+ * @brief Function prototype for a Dynamic Menu `destroy` function.
  * @ingroup menumgr
  *
- * @param menu Pointer to the dynmenu_t menu needing a title.
- * @return String to be used as the menu title.
+ * @param menu Pointer to the dynmenu_t menu being destroyed.
  */
-typedef const char* (*mnu_get_title_fn)(const dynmenu_t* menu);
+typedef void (*mnu_destroy_fn)(const dynmenu_t* menu);
+
+/**
+ * @brief Function prototype for a Dynamic Menu `init` function.
+ * @ingroup menumgr
+ *
+ * @param menu Pointer to the dynmenu_t menu being initialized.
+ */
+typedef void (*mnu_init_fn)(const dynmenu_t* menu);
 
 /**
  * @brief Function prototype for a Dynamic Menu `get_item` function.
@@ -62,6 +94,15 @@ typedef const dynmenu_item_t* (*mnu_get_item_fn)(const dynmenu_t* menu, const dy
  * @return const char* Item label string.
  */
 typedef const char* (*mnu_get_item_lbl_fn)(const dynmenu_t* menu, const dynmenu_item_t* item);
+
+/**
+ * @brief Function prototype for a Dynamic Menu `get_title` function.
+ * @ingroup menumgr
+ *
+ * @param menu Pointer to the dynmenu_t menu needing a title.
+ * @return String to be used as the menu title.
+ */
+typedef const char* (*mnu_get_title_fn)(const dynmenu_t* menu);
 
 /**
  * @brief Function prototype for a Dynamic Menu Item `handler` function.
@@ -97,28 +138,30 @@ typedef bool (*mnu_has_item_fn)(const dynmenu_t* menu, const dynmenu_item_t* ite
 struct mnu_dmenu_s_ {
     menu_type_t type; // Type must be 1st and set to 'MENU_DYNAMIC'
     void* data; // Can be anything of meaning to the item functions
-    const mnu_get_title_fn get_title;
-    const mnu_get_item_fn get_item;
-    const mnu_has_item_fn has_item;
+    mnu_destroy_fn destroy;
+    mnu_get_title_fn get_title;
+    mnu_get_item_fn get_item;
+    mnu_has_item_fn has_item;
+    mnu_init_fn init;
 };
 
 struct mnu_ditem_s_ {
     void* data; // Can be anything of meaning to the item functions
-    const mnu_get_item_lbl_fn get_label;
-    const mnu_handle_ditem_fn handler;
+    mnu_get_item_lbl_fn get_label;
+    mnu_handle_ditem_fn handler;
 };
 
 struct mnu_smenu_s_ {
     menu_type_t type; // Type must be 1st and set to 'MENU_STATIC'
     void* data; // Can be anything of meaning to the item functions
     const char* title;
-    const smenu_item_t** items;
+    const smenu_item_t** items; // Items terminated by a NULL item
 };
 
 struct mnu_sitem_s_ {
     void* data; // Can be anything of meaning to the item functions
     const char* label;
-    const mnu_handle_sitem_fn handler;
+    mnu_handle_sitem_fn handler;
 };
 
 /**

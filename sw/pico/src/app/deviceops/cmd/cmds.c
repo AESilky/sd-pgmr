@@ -11,6 +11,7 @@
 #include "cmds.h"
 
 #include "cmt.h"
+#include "dskops.h"
 #include "include/util.h"
 
 #include "shell/include/shell.h"
@@ -20,8 +21,9 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "../include/pdusr.h"
 #include "../include/pdops.h"
-#include "../include/prog_device.h"
+//#include "../include/prog_device.h"
 
 #define DDRDWR_REPEAT_MS 10
 
@@ -47,21 +49,59 @@ const cmd_handler_entry_t cmds_devdump_entry;
 const cmd_handler_entry_t cmds_deverase_entry;
 const cmd_handler_entry_t cmds_devinfo_entry;
 const cmd_handler_entry_t cmds_devmt_entry;
+const cmd_handler_entry_t cmds_devprog_entry;
 const cmd_handler_entry_t cmds_devpwr_entry;
 const cmd_handler_entry_t cmds_devrd_entry;
 const cmd_handler_entry_t cmds_devrd_n_entry;
+const cmd_handler_entry_t cmds_devread_entry;
 const cmd_handler_entry_t cmds_devsectaddr_entry;
 const cmd_handler_entry_t cmds_devsecterase_entry;
 const cmd_handler_entry_t cmds_devsectmt_entry;
+const cmd_handler_entry_t cmds_devverify_entry;
 const cmd_handler_entry_t cmds_devwr_entry;
 const cmd_handler_entry_t cmds_devwr_n_entry;
 const cmd_handler_entry_t cmds_devwrval_entry;
 
+// ====================================================================
+// Message Strings
+// ====================================================================
 
-static void _progress(uint32_t v) {
-    // v is typically an address, just print a dot each time we're called.
-    shell_putc('.');
+
+// ====================================================================
+// Run-After/Delay/Sleep Methods
+// ====================================================================
+
+static void _repeat_handler(cmt_msg_t* msg) {
+    _rptdlyip = false;  // Delay completed
+    // Do the operation
+    switch (_rptop) {
+    case RPT_ADDR_SET:
+        pdo_addr_set(_addr);
+        break;
+    case RPT_WR_DATA:
+        pdo_data_set(_data);
+        break;
+    case RPT_RD_DATA:
+        uint8_t data = pdo_data_get();
+        _data = data; // Just for debugging
+        break;
+    default:
+        _repeat = false;
+        break;
+    }
+    if (_repeat) {
+        // Repeat hasn't been cancelled... Schedule another.
+        cmt_msg_t msg1;
+        cmt_exec_init(&msg1, _repeat_handler);
+        schedule_msg_in_ms(DDRDWR_REPEAT_MS, &msg1);
+        _rptdlyip = true;
+    }
 }
+
+
+// ====================================================================
+// Local 'Helper' Methods
+// ====================================================================
 
 /**
  * @brief Get an unsigned value under a limit from a string or "." to keep the current value.
@@ -119,32 +159,21 @@ static bool _get_addr(char* addrstr) {
     return (true);
 }
 
-static void _repeat_handler(cmt_msg_t *msg) {
-    _rptdlyip = false;  // Delay completed
-    // Do the operation
-    switch(_rptop) {
-        case RPT_ADDR_SET:
-            pdo_addr_set(_addr);
-            break;
-        case RPT_WR_DATA:
-            pdo_data_set(_data);
-            break;
-        case RPT_RD_DATA:
-            uint8_t data = pdo_data_get();
-            _data = data; // Just for debugging
-            break;
-        default:
-            _repeat = false;
-            break;
+static int _get_sect_num(const char* s, const md_info_t* info) {
+    // Use int to allow returning -1 for error
+    bool success;
+    int sect = (uint16_t)uint_from_str(s, &success);
+    if (!success || sect >= info->sectcnt) {
+        shell_printferr("Value error - '%s' is not valid. Must be 0-%hu.\n", s, (uint16_t)(info->sectcnt - 1));
+        sect = -1;
     }
-    if (_repeat) {
-        // Repeat hasn't been cancelled... Schedule another.
-        cmt_msg_t msg1;
-        cmt_exec_init(&msg1, _repeat_handler);
-        schedule_msg_in_ms(DDRDWR_REPEAT_MS, &msg1);
-        _rptdlyip = true;
-    }
+    return (sect);
 }
+
+
+// ====================================================================
+// Local 'Execution' Methods
+// ====================================================================
 
 static int _exec_atos(int argc, char** argv, const char* unparsed) {
     if (argc != 2) {
@@ -160,16 +189,13 @@ static int _exec_atos(int argc, char** argv, const char* unparsed) {
     }
     int retval = 0;
     // Try to turn the power on
-    pdo_request_pwr_on(true);
-    if (ERRORNO < 0) {
-        shell_printferr("Unable to power on the device.\n");
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
         retval = -1;
         goto _finally;
     }
-    const md_info_t* info = pd_info();
-    pdo_request_pwr_on(false);
+    const md_info_t* info = pdusr_info(true, true);
     if (!info) {
-        shell_printferr("Device not identified.\n");
         retval = -1;
         goto _finally;
     }
@@ -185,7 +211,7 @@ static int _exec_atos(int argc, char** argv, const char* unparsed) {
 
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -196,9 +222,13 @@ static int _exec_addr(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_devaddr_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
     int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
     _rptop = RPT_NONE;  // no repeat unless enabled below
     _repeat = false; // using this command with other than 'R' stops any repeat operation.
     if (argc > 1) {
@@ -232,7 +262,7 @@ static int _exec_addr(int argc, char** argv, const char* unparsed) {
 
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -243,9 +273,13 @@ static int _exec_addrn(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_devaddr_n_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
     int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
     _addr++;
     pdo_addr_set(_addr);
     if (ERRORNO) {
@@ -257,7 +291,7 @@ static int _exec_addrn(int argc, char** argv, const char* unparsed) {
 
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -268,34 +302,7 @@ static int _exec_derase_all(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_deverase_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    int retval = 0;
-    // Try to turn the power on
-    ERRORNO = 0;
-    pdo_request_pwr_on(true);
-    if (ERRORNO) {
-        shell_printferr("Cannot select device.");
-        retval = -1;
-        goto _finally;
-    }
-    // Get the device info
-    const md_info_t* info = pd_info();
-    if (!info) {
-        shell_printferr("Device cannot be determined.\n");
-        retval = -1;
-        goto _finally;
-    }
-    shell_puts("erasing device...");
-    pd_op_status_t stat = pd_erase_device(info);
-    if (stat != PD_OP_OK) {
-        shell_printf("\nError erasing device: (%d)\n", stat);
-    }
-    else {
-        shell_puts("\nDevice erased.\n");
-    }
-_finally:
-    // Try to turn the power off
-    pdo_request_pwr_on(false);
-
+    int retval = (pdusr_erase_all(true) ? 0 : -2);
     return (retval);
 }
 
@@ -306,45 +313,24 @@ static int _exec_derase_sect(int argc, char** argv, const char* unparsed) {
         return (-1);
     }
     int retval = 0;
-    // Try to turn the power on
-    ERRORNO = 0;
-    pdo_request_pwr_on(true);
-    if (ERRORNO) {
-        shell_printferr("Cannot select device.");
-        retval = -1;
-        goto _finally;
-    }
     // Get the device info
-    const md_info_t* info = pd_info();
+    const md_info_t* info = pdusr_info(true, true);
     if (!info) {
-        shell_printferr("Device cannot be determined.\n");
         retval = -1;
         goto _finally;
     }
     // Get the sector number
-    bool success;
-    uint8_t sect = (uint16_t)uint_from_str(argv[1], &success);
-    if (!success || sect >= info->sectcnt) {
-        shell_printferr("Value error - '%s' is not valid. Must be 0-%hu.\n", argv[1], (uint16_t)(info->sectcnt - 1));
-        retval = -1;
+    retval = _get_sect_num(argv[1], info);
+    if (retval < 0) {
         goto _finally;
     }
-    shell_printf("erasing sector %hu...", sect);
-    pd_op_status_t stat = pd_erase_sect(info, sect);
-    if (stat != PD_OP_OK) {
-        shell_printf("\nError erasing sector %hu: (%d)\n", sect, stat);
-    }
-    else {
-        shell_printf("\nSector %hu erased.\n", sect);
-    }
+    uint8_t sect = (uint8_t)retval;
+    retval = (pdusr_erase_sect(info, sect, true) ? 0 : -2);
 _finally:
-    // Try to turn the power off
-    pdo_request_pwr_on(false);
-
     return (retval);
 }
 
-static int _exec_dump(int argc, char** argv, const char* unparsed) {
+static int _exec_ddump(int argc, char** argv, const char* unparsed) {
     static uint16_t _dump_len = 256; // Display 256 bytes unless told otherwise
 
     if (argc > 3) {
@@ -352,9 +338,13 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_devdump_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
     int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
     argv++; // Skip the command name
     argc--;
     if (argc > 0) {
@@ -390,6 +380,18 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
     }
     int len = 0;
     uint8_t v[16];
+    // Display a header to identify the bytes
+    uint8_t sb = lowByte(_addr);
+    shell_puts("       ");
+    for (int n = 0; n < 16; n++) {
+        shell_printf("%02X ", lowByte(n+sb));
+    }
+    shell_puts("  ");
+    for (int n = 0; n < 16; n++) {
+        shell_printf("%1X ", lowByte((n + sb) & 0x0F));
+    }
+    shell_putc('\n');
+    shell_puts("=====  == == == == == == == == == == == == == == == ==   = = = = = = = = = = = = = = = =\n");
     while (len < _dump_len) {
         // Read and display rows of up to 16 bytes
         //
@@ -432,7 +434,7 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
     };
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -443,24 +445,8 @@ static int _exec_dinfo(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_devinfo_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
-    if (ERRORNO < 0) {
-        return (ERRORNO);
-    }
-    const md_info_t* info = pd_info();
-    pdo_request_pwr_on(false);
-    if (!info) {
-        shell_printferr("Device not identified.\n");
-        return (-1);
-    }
-    uint32_t size = pd_size(info);
-    uint16_t ksize = size / ONE_K;
-    uint32_t sectsize = pd_sectsize(info);
-    uint16_t ksectsize = sectsize / ONE_K;
-    shell_printf("Device - MFG:%s DEV:%s Size: %huK Sectors:%hu x %huK\n", info->mfgs, info->devs, ksize, (uint16_t)info->sectcnt, ksectsize);
-
-    return (0);
+    int retval = (pdusr_info(false, true) ? 0 : -2);
+    return (retval);
 }
 
 static int _exec_dmt(int argc, char** argv, const char* unparsed) {
@@ -469,117 +455,33 @@ static int _exec_dmt(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_devinfo_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    int retval = 0;
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
-    if (ERRORNO < 0) {
-        retval = -1;
-        goto _finally;
-    }
-    const md_info_t* info = pd_info();
-    if (!info) {
-        shell_printferr("Device not identified.\n");
-        retval = -1;
-        goto _finally;
-    }
-    shell_printf("checking device...");
-    bool ismt = pd_is_empty(_progress);
-    const char* mods = (ismt ? "" : "not ");
-    shell_printf("\nDevice is %sempty\n", mods);
-
-_finally:
-    // Try to turn the power off
-    pdo_request_pwr_on(false);
-
+    int retval = (pdusr_is_empty(true) ? 0 : -2);
     return (retval);
 }
 
-
-static int _exec_dsect_addr(int argc, char** argv, const char* unparsed) {
-    if (argc != 2) {
-        // We take exactly 1 argument: sector number
-        cmd_help_display(&cmds_devsectaddr_entry, HELP_DISP_USAGE);
+static int _exec_dprog(int argc, char** argv, const char* unparsed) {
+    // Move past the command name
+    argv++; argc--;
+    if (argc != 1) {
+        // We take exactly one argument.
+        cmd_help_display(&cmds_devprog_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    int retval = 0;
-    // Try to turn the power on
-    ERRORNO = 0;
-    pdo_request_pwr_on(true);
-    if (ERRORNO) {
-        shell_printferr("Cannot check device.");
-        retval = -1;
-        goto _finally;
-    }
-    // Get the device info
-    const md_info_t* info = pd_info();
-    if (!info) {
-        shell_printferr("Device cannot be determined.\n");
-        retval = -1;
-        goto _finally;
-    }
-    // Get the sector number
-    bool success;
-    uint8_t sect = (uint16_t)uint_from_str(argv[1], &success);
-    if (!success || sect >= info->sectcnt) {
-        shell_printferr("Value error - '%s' is not valid. Must be 0-%hu.\n", argv[1], (uint16_t)(info->sectcnt - 1));
-        retval = -1;
-        goto _finally;
-    }
-    uint32_t sectsize = pd_sectsize(info);
-    uint32_t addrs = (sect * sectsize);
-    uint32_t addre = addrs + (sectsize - 1);
-    shell_printf("\nDevice sector %hu address: Start=%05X End=%05X\n", sect, addrs, addre);
-_finally:
-    // Try to turn the power off
-    pdo_request_pwr_on(false);
-
-    return (retval);
-}
-
-static int _exec_dsectmt(int argc, char** argv, const char* unparsed) {
-    if (argc != 2) {
-        // We take exactly 1 argument: data
-        cmd_help_display(&cmds_devsectmt_entry, HELP_DISP_USAGE);
+    // See if the file exists.
+    const char* filename = *argv;
+    FF_Stat_t fstat;
+    if (ff_stat(filename, &fstat) != 0) {
+        shell_printferr("Cannot stat '%s'\n", filename);
         return (-1);
     }
-    int retval = 0;
-    // Try to turn the power on
-    ERRORNO = 0;
-    pdo_request_pwr_on(true);
-    if (ERRORNO) {
-        shell_printferr("Cannot check device.");
-        retval = -1;
-        goto _finally;
-    }
-    // Get the device info
-    const md_info_t* info = pd_info();
-    if (!info) {
-        shell_printferr("Device cannot be determined.\n");
-        retval = -1;
-        goto _finally;
-    }
-    // Get the sector number
-    bool success;
-    uint8_t sect = (uint16_t)uint_from_str(argv[1], &success);
-    if (!success || sect >= info->sectcnt) {
-        shell_printferr("Value error - '%s' is not valid. Must be 0-%hu.\n", argv[1], (uint16_t)(info->sectcnt - 1));
-        retval = -1;
-        goto _finally;
-    }
-    shell_printf("checking device...");
-    bool dmt = pd_is_sect_empty(sect);
-    const char* mods = (dmt ? "" : "not ");
-    shell_printf("\nDevice sector %hu is %sempty\n", sect, mods);
-_finally:
-    // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pd_op_status_t pdos = pdusr_prog(filename, true);
+    int retval = (pdos == PD_OP_OK ? 0 : -2);
 
     return (retval);
 }
 
 static int _exec_dpwr(int argc, char** argv, const char* unparsed) {
     progdev_pwr_mode_t pm;
-
     if (argc > 2) {
         // We only take a single argument.
         cmd_help_display(&cmds_devpwr_entry, HELP_DISP_USAGE);
@@ -603,15 +505,118 @@ static int _exec_dpwr(int argc, char** argv, const char* unparsed) {
     return (0);
 }
 
+static int _exec_dread(int argc, char** argv, const char* unparsed) {
+    // Move past the command name
+    argv++; argc--;
+    if (argc != 1) {
+        // We take exactly one argument.
+        cmd_help_display(&cmds_devread_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    // See if the file exists.
+    const char* filename = *argv;
+    pd_op_status_t pdos = pdusr_read(filename, true);
+    int retval = (pdos == PD_OP_OK ? 0 : -2);
+
+    return (retval);
+}
+
+static int _exec_dsect_addr(int argc, char** argv, const char* unparsed) {
+    if (argc != 2) {
+        // We take exactly 1 argument: sector number
+        cmd_help_display(&cmds_devsectaddr_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
+    // Get the device info
+    const md_info_t* info = pdusr_info(true, true);
+    if (!info) {
+        retval = -1;
+        goto _finally;
+    }
+    // Get the sector number
+    retval = _get_sect_num(argv[1], info);
+    if (retval < 0) {
+        goto _finally;
+    }
+    uint8_t sect = (uint8_t)retval;
+    uint32_t sectsize = pd_sectsize(info);
+    uint32_t addrs = (sect * sectsize);
+    uint32_t addre = addrs + (sectsize - 1);
+    shell_printf("\nDevice sector %hu address: Start=%05X End=%05X\n", sect, addrs, addre);
+_finally:
+    // Try to turn the power off
+    pdo_pwr_request_on(false);
+
+    return (retval);
+}
+
+static int _exec_dsectmt(int argc, char** argv, const char* unparsed) {
+    if (argc != 2) {
+        // We take exactly 1 argument: data
+        cmd_help_display(&cmds_devsectmt_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    int retval = 0;
+    // Try to turn the power on
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
+    // Get the device info
+    const md_info_t* info = pdusr_info(true, true);
+    if (!info) {
+        retval = -1;
+        goto _finally;
+    }
+    // Get the sector number
+    retval = _get_sect_num(argv[1], info);
+    if (retval < 0) {
+        goto _finally;
+    }
+    uint8_t sect = (uint8_t)retval;
+    shell_printf("checking device...");
+    retval = (pdusr_is_sect_empty(sect, true) ? 0 : -2);
+_finally:
+    return (retval);
+}
+
+static int _exec_dverify(int argc, char** argv, const char* unparsed) {
+    // Move past the command name
+    argv++; argc--;
+    if (argc != 1) {
+        // We take exactly one argument.
+        cmd_help_display(&cmds_devverify_entry, HELP_DISP_USAGE);
+        return (-1);
+    }
+    // See if the file exists and how big it is.
+    const char* filename = *argv;
+    term_cursor_on(false);
+    pd_op_status_t pdos = pdusr_verify(filename, true);
+    term_cursor_on(true);
+    int retval = (pdos == PD_OP_OK ? 0 : -2);
+    return (retval);
+}
+
 static int _exec_rd(int argc, char** argv, const char* unparsed) {
     if (argc > 2) {
         // We only take 0 or 1 argument.
         cmd_help_display(&cmds_devrd_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
     int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
     _repeat = false; // using this command with other than 'R' stops any repeat operation.
     _rptop = RPT_NONE;  // no repeat unless enabled below
     if (argc > 1) {
@@ -650,7 +655,7 @@ static int _exec_rd(int argc, char** argv, const char* unparsed) {
     }
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -661,9 +666,13 @@ static int _exec_nrd(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_devrd_n_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
     int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
     _rptop = RPT_RD_DATA;
     _addr++;
     pdo_addr_set(_addr);
@@ -682,7 +691,7 @@ static int _exec_nrd(int argc, char** argv, const char* unparsed) {
 
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -695,9 +704,13 @@ static int _exec_wr(int argc, char** argv, const char* unparsed) {
         return (-1);
     }
     // using this command with other than 'R' stops any repeat operation.
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
     int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
     _rptop = RPT_NONE;
     _repeat = false;
     if (argc > 2) {
@@ -745,7 +758,7 @@ static int _exec_wr(int argc, char** argv, const char* unparsed) {
 
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -758,22 +771,20 @@ static int _exec_wrval(int argc, char** argv, const char* unparsed) {
         return (-1);
     }
     // using this command stops any repeat operation.
-    int retval = 0;
     _rptop = RPT_NONE;
     _repeat = false;
     if (_rptdlyip) {
         scheduled_msg_cancel2(MSG_EXEC, _repeat_handler);
     }
+    int retval = 0;
     // Try to turn the power on
-    pdo_request_pwr_on(true);
-    if (ERRORNO < 0) {
-        shell_printferr("Unable to power on the device.\n");
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
         retval = -1;
         goto _finally;
     }
-    const md_info_t* info = pd_info();
+    const md_info_t* info = pdusr_info(true, true);
     if (!info) {
-        shell_printferr("Device not identified.\n");
         retval = -1;
         goto _finally;
     }
@@ -821,7 +832,7 @@ static int _exec_wrval(int argc, char** argv, const char* unparsed) {
     }
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
@@ -832,9 +843,13 @@ static int _exec_nwr(int argc, char** argv, const char* unparsed) {
         cmd_help_display(&cmds_devwr_n_entry, HELP_DISP_USAGE);
         return (-1);
     }
-    // Try to turn the power on
-    pdo_request_pwr_on(true);
     int retval = 0;
+    // Try to turn the power on
+    ERRORNO = 0;
+    if (!pdusr_pwr_request_on(true, true)) {
+        retval = -1;
+        goto _finally;
+    }
     _rptop = RPT_WR_DATA;
     _addr++;
     pdo_addr_set(_addr);
@@ -860,47 +875,47 @@ static int _exec_nwr(int argc, char** argv, const char* unparsed) {
 
 _finally:
     // Try to turn the power off
-    pdo_request_pwr_on(false);
+    pdo_pwr_request_on(false);
 
     return (retval);
 }
 
 const cmd_handler_entry_t cmds_addrtosect_entry = {
     _exec_atos,
-    5,
-    "patos",
+    4,
+    "atos",
     "addr(hex)",
     "Convert an address to a Device Sector#.",
 };
 
 const cmd_handler_entry_t cmds_devaddr_entry = {
     _exec_addr,
-    4,
-    "paddr",
+    5,
+    ".paddr",
     "[addr(hex)|R]",
     "Show the address being used and optionally set it. Repeat setting it (for troubleshooting).",
 };
 
 const cmd_handler_entry_t cmds_devaddr_n_entry = {
     _exec_addrn,
-    4,
-    "paaddr",
+    5,
+    ".paaddr",
     NULL,
     "Advance the device address.",
 };
 
 const cmd_handler_entry_t cmds_deverase_entry = {
     _exec_derase_all,
-    6,
-    "perase",
+    5,
+    "erase",
     NULL,
     "Erase the device.",
 };
 
 const cmd_handler_entry_t cmds_devdump_entry = {
-    _exec_dump,
-    3,
-    "pdump",
+    _exec_ddump,
+    4,
+    "dump",
     "[[addr(hex)|.] len(dec)]",
     "Dump device data. Optionally specify start address and length.",
 };
@@ -908,65 +923,89 @@ const cmd_handler_entry_t cmds_devdump_entry = {
 const cmd_handler_entry_t cmds_devinfo_entry = {
     _exec_dinfo,
     4,
-    "pinfo",
+    "info",
     NULL,
     "Get device information.",
 };
 
 const cmd_handler_entry_t cmds_devmt_entry = {
     _exec_dmt,
-    5,
-    "pisempty",
+    4,
+    "isblank",
     NULL,
-    "Check if device is empty.",
+    "Check if device is blank.",
+};
+
+const cmd_handler_entry_t cmds_devprog_entry = {
+    _exec_dprog,
+    4,
+    "program",
+    "filename",
+    "Program the device with the data from the file.",
 };
 
 const cmd_handler_entry_t cmds_devpwr_entry = {
     _exec_dpwr,
-    3,
-    "ppwr",
+    4,
+    ".ppwr",
     "A|ON|OFF",
     "Set device Power Mode A|OFF|ON.",
 };
 
 const cmd_handler_entry_t cmds_devrd_entry = {
     _exec_rd,
-    3,
+    4,
     ".prd",
     "[addr(hex)|R]",
-    "Read device data from the current or specified address, or start a repeated read.\nUsing this command without 'R' stops any repeated operation.",
+    "Read device data from the current or specified address, or start a repeated read.\n Using this command without 'R' stops any repeated operation.",
 };
 
 const cmd_handler_entry_t cmds_devrd_n_entry = {
     _exec_nrd,
-    3,
+    4,
     ".prn",
     NULL,
     "Advance the address and read device data.",
 };
 
+const cmd_handler_entry_t cmds_devread_entry = {
+    _exec_dread,
+    4,
+    "read",
+    "filename",
+    "Read the device into a file, creating or truncating the file as needed.",
+};
+
 const cmd_handler_entry_t cmds_devsectaddr_entry = {
     _exec_dsect_addr,
-    6,
-    "psectaddr",
+    5,
+    "sectaddr",
     "sectno(dec)",
     "Get address range for a device sector. 0-based sector number.",
 };
 
 const cmd_handler_entry_t cmds_devsecterase_entry = {
     _exec_derase_sect,
-    10,
-    "psecterase",
+    9,
+    "secterase",
     "sectno(dec)",
     "Erase device sector. 0-based sector number.",
 };
 
 const cmd_handler_entry_t cmds_devsectmt_entry = {
     _exec_dsectmt,
-    6,
-    "psectempty",
+    7,
+    "sectempty",
     "sectno(dec)",
     "Check if device sector is empty. 0-based sector number.",
+};
+
+const cmd_handler_entry_t cmds_devverify_entry = {
+    _exec_dverify,
+    5,
+    "verify",
+    "filename",
+    "Verify the device against the data from the file.",
 };
 
 const cmd_handler_entry_t cmds_devwr_entry = {
@@ -987,14 +1026,14 @@ const cmd_handler_entry_t cmds_devwr_n_entry = {
 
 const cmd_handler_entry_t cmds_devwrval_entry = {
     _exec_wrval,
-    4,
-    "pwrval",
+    5,
+    ".pwrval",
     "addr(hex) data(hex) [data(hex)...]",
     "Write one or more values to the specified address. Device location(s) must be empty.",
 };
 
 
-void pdcmds_minit(void) {
+void pdcmds_modinit(void) {
     cmd_register(&cmds_addrtosect_entry);
     cmd_register(&cmds_devaddr_entry);
     cmd_register(&cmds_devaddr_n_entry);
@@ -1002,12 +1041,15 @@ void pdcmds_minit(void) {
     cmd_register(&cmds_deverase_entry);
     cmd_register(&cmds_devinfo_entry);
     cmd_register(&cmds_devmt_entry);
+    cmd_register(&cmds_devprog_entry);
     cmd_register(&cmds_devpwr_entry);
     cmd_register(&cmds_devrd_entry);
     cmd_register(&cmds_devrd_n_entry);
+    cmd_register(&cmds_devread_entry);
     cmd_register(&cmds_devsectaddr_entry);
     cmd_register(&cmds_devsecterase_entry);
     cmd_register(&cmds_devsectmt_entry);
+    cmd_register(&cmds_devverify_entry);
     cmd_register(&cmds_devwr_entry);
     cmd_register(&cmds_devwr_n_entry);
     cmd_register(&cmds_devwrval_entry);

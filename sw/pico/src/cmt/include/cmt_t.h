@@ -54,6 +54,7 @@ typedef enum MSG_ID_ {
     MSG_CMD_KEY_PRESSED,
     MSG_CMD_INIT_TERMINAL,
     MSG_DISPLAY_MESSAGE,
+    MSG_DLG_TIMEOUT,
     MSG_INPUT_CHAR_READY,
 } msg_id_t;
 #define MSG_ID_CNT (0x100)
@@ -104,6 +105,7 @@ union MSG_DATA_VALUE_ {
     uint64_t ts_us;
 };
 typedef union MSG_DATA_VALUE_ msg_data_value_t;
+#define MDPTR(x) ((void*)(x))
 
 /**
  * @brief Structure containing a message ID and message data.

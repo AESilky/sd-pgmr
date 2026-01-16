@@ -160,7 +160,7 @@ void re_turn_handler(uint phase) {
 
 
 
-void re_minit() {
+void re_modinit() {
     if (_initialized) {
         board_panic("!!! re_module_init: Called more than once !!!");
     }

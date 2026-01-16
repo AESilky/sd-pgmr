@@ -26,6 +26,7 @@ extern "C" {
 
 #include "ff.h"
 #include "f_util.h"
+#include "ff_stdio.h"
 
 /** @brief As on 'classic' DOS = 260 */
 #define MAX_PATH 260
@@ -53,7 +54,7 @@ extern FRESULT dsk_unmount_sd();
  * @brief Initialize the module. Must be called once/only-once before module use.
  *
  */
-extern void dskops_minit();
+extern void dskops_modinit();
 
 #ifdef __cplusplus
 }

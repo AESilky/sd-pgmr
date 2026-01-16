@@ -42,10 +42,13 @@ endif()
 
 # For debug output from USB (pass -DPICO_STDIO_USB=1) this ensures we don't lose any debug output while USB is set up
 if (NOT DEFINED PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS)
-    set(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS 2500)
+    set(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS 0)
 endif()
 if (NOT DEFINED PICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS)
-    set(PICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS 15)
+    set(PICO_STDIO_USB_POST_CONNECT_WAIT_DELAY_MS 0)
+endif()
+if (NOT DEFINED PICO_STDIO_USB_ENABLE_RESET_VIA_BAUD_RATE)
+    set(PICO_STDIO_USB_ENABLE_RESET_VIA_BAUD_RATE 1)    # Go to Boot Loader is BAUD goes to 1200
 endif()
 
 # Don't enable the UART STDIO globally. Enabling is handled in 'debug_support' in the code.
@@ -76,7 +79,7 @@ add_compile_definitions(
   PICO_MAX_SHARED_IRQ_HANDLERS=6u
   PICO_STDIO_USB_CONNECTION_WITHOUT_DTR
   PICO_STDIO_USB_SUPPORT_CHARS_AVAILABLE_CALLBACK
-  DEBUG_TRACE_ENABLE
+  #DEBUG_TRACE_ENABLE
 )
 
 # Initialize the SDK

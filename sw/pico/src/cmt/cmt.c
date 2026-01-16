@@ -495,7 +495,7 @@ void message_loop(msg_handler_fn fstart) {
     } while (1);
 }
 
-void cmt_minit() {
+void cmt_modinit() {
     // Clear out the message handler table
     for (int i = 0; i < MSG_ID_CNT; i++) {
         cmt_msg_hdlrs[i] = (cmt_msg_hdlr_ll_ent_t*)NULL;
@@ -525,7 +525,7 @@ void cmt_minit() {
 
     // Initialize the message handler entries and scheduled message datas
     // heaps so that we can add/remove handlers and schedule messages and sleeps.
-    cmt_heap_minit();
+    cmt_heap_modinit();
     // Set the head of the scheduled message linked list to NULL (empty)
     mutex_enter_blocking(&sm_mutex);
     cmt_smd_ll = (cmt_schmsgdata_ll_ent_t*)NULL;

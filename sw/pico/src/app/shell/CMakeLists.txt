@@ -27,7 +27,7 @@ target_link_libraries(shell INTERFACE
     pico_stdlib
 )
 
-# Library: Shell STUB (do nothing shell_minit only)
+# Library: Shell STUB (do nothing shell_modinit only)
 add_library(shell_stub INTERFACE)
 
 target_sources(shell_stub INTERFACE

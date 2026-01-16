@@ -440,6 +440,8 @@ static const char *cmd2str(const cmdSupported cmd) {
             return "ACMD51_SEND_SCR";
     }
 }
+#else
+static const char* cmd2str(const cmdSupported cmd) {return ("");}
 #endif
 
 static int sd_cmd(sd_card_t *pSD, const cmdSupported cmd, uint32_t arg,

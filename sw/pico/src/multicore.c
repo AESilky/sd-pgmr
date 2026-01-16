@@ -186,7 +186,7 @@ void start_core1() {
     multicore_launch_core1(core1_main);
 }
 
-void multicore_minit(bool no_qadd_panic) {
+void multicore_modinit(bool no_qadd_panic) {
     static bool _initialized = false;
     if (_initialized) {
         board_panic("Multicore already initialized");

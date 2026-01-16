@@ -10,6 +10,7 @@
 
 #include "xyz.h"
 
+#include "board.h"
 #include "msgpost.h"
 
 #include "pico/types.h" // 'uint' and other standard types
@@ -77,9 +78,9 @@ static void _handle_housekeeping(cmt_msg_t* msg) {
 // ====================================================================
 
 
-void xyz_minit() {
+void xyz_modinit() {
     if (_initialized) {
-        board_panic("!!! xyz_minit: Called more than once !!!");
+        board_panic("!!! xyz_modinit: Called more than once !!!");
     }
     _initialized = true;
 

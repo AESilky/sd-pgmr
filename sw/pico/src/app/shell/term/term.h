@@ -393,7 +393,7 @@ extern int term_get_screen_info(char* buf, int maxlen);
  * @ingroup term
  *
  * This sends a DA1 (CSI 0 c) to the terminal and reads the response. It waits a maximum of
- * 250ms for a respoinse.
+ * 250ms for a response.
  *
  * @param buf A character buffer to store the DA string into.
  * @param maxlen The maximum number of characters to get.
@@ -448,15 +448,26 @@ extern void term_input_buf_clear(void);
 extern bool term_input_overflow(void);
 
 /**
- * @brief Initialize the Term library and send initial configuration to the terminal.
+ * @brief Initialize the Term library and set up to receive input from the terminal.
+ * @ingroup term
+ */
+void term_init0();
+
+/**
+ * @brief Do a minor terminal init. Mostly just a reset.
+ * @ingroup term
+ */
+void term_init1();
+
+/**
+ * @brief Send initial configuration to the terminal.
  * @ingroup term
  *
- * This initializes the terminal type and screen size and sets up an input handler
- * from the standard input device.
+ * This initializes the terminal type and screen size.
  *
  * @note This must be called while `sleep` is allowed.
  */
-extern void term_minit(void);
+extern void term_init(void);
 
 /**
  * @brief Terminal ID returned upon power-up.

@@ -6,8 +6,8 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#ifndef APP_H_
-#define APP_H_
+#ifndef APP_T_H_
+#define APP_T_H_
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,4 +24,4 @@ extern int ERRORNO;
 #ifdef __cplusplus
     }
 #endif
-#endif // APP_H_
+#endif // APP_T_H_

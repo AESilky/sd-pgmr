@@ -48,7 +48,7 @@ static volatile bool _initialized;
 // ====================================================================
 
 
-void re_pbsw_minit() {
+void re_pbsw_modinit() {
     // GPIO is initialized in `board.c` with the rest of the board.
     if (_initialized) {
         board_panic("!!! re_pbsw_module_init: Called more than once !!!");

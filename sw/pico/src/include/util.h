@@ -223,9 +223,9 @@ extern "C" {
      * @param dest String buffer that is at least one character larger than `maxchars`.
      * @param src Source string to copy.
      * @param maxchars The maximum number of characters to be copied.
-     * @return int The number of characters copied.
+     * @return size_t The number of characters copied.
      */
-    extern int strcpynt(char* dest, const char* src, size_t maxchars);
+    extern size_t strcpynt(char* dest, const char* src, size_t maxchars);
 
     /**
      * @brief Format a date-time into a string.

@@ -17,7 +17,7 @@
 
 #define FONT_WIDTH 9
 #define FONT_HEIGHT 10
-#define FONT_BIT_MASK 0x01FF
+#define FONT_BIT_MASK 0x03FF
 extern const uint16_t Font_Table[];
 
 #ifdef __cplusplus

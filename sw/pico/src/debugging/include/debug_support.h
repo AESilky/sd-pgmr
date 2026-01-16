@@ -29,7 +29,8 @@ static inline void debug_trace_init() {
 #define DT_ENTER() {_debug_trace(">>>"); _debug_trace(__FUNCTION__); _debug_trace("\n");}
 #define DT_EXIT() {_debug_trace("<<<"); _debug_trace(__FUNCTION__); _debug_trace("\n");}
 #else
-#define debug_tprintf (0)
+static inline void __nopf(const char* format, ...) {}
+#define debug_tprintf __nopf
 static inline void debug_trace_init() {}
 static inline void debug_trace(const char* str) {}
 #define DT_ENTER() (0)

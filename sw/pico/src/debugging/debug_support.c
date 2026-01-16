@@ -33,6 +33,9 @@ static bool _debug_mode_enabled = false;
 #define DEBUG_UART_BAUDRATE     115200
 
 
+void _debug_trace(const char* str) {
+    uart_puts(DEBUG_UART_INST, str);
+}
 void _debug_tpf(const char* format, ...) {
     int index = 0;
     va_list xArgs;
@@ -40,9 +43,6 @@ void _debug_tpf(const char* format, ...) {
     index += vsnprintf(&shared_print_buf[index], SHARED_PRINT_BUF_SIZE - index, format, xArgs);
     va_end(xArgs);
     _debug_trace(shared_print_buf);
-}
-void _debug_trace(const char* str) {
-    uart_puts(DEBUG_UART_INST, str);
 }
 void _debug_trace_init() {
     //

@@ -30,7 +30,8 @@
 
 #define _HWRT_STATUS_PULSE_PERIOD 6999
 
-static volatile bool _apps_started = false;
+static volatile bool _apps_started;
+static volatile bool _attn_flag;
 
 typedef bool (*sw_pressed_fn)(void);
 
@@ -47,7 +48,7 @@ static void _gpio_irq_handler(uint gpio, uint32_t events);
 static void _sw_irq_handler(switch_id_t sw, uint32_t events);
 
 // Message handler methods...
-static void _handle_hwrt_housekeeping(cmt_msg_t* msg);
+static void _handle_housekeeping(cmt_msg_t* msg);
 static void _handle_hwrt_test(cmt_msg_t* msg);
 static void _handle_apps_started(cmt_msg_t* msg);
 
@@ -82,8 +83,8 @@ static void _handle_apps_started(cmt_msg_t* msg) {
 
     // Initialize other modules that the RT oversees.
     //
-    re_pbsw_minit();  // Rotary Encoder Push-Button Switch module
-    re_minit();       // Rotary Encoder (knob) module
+    re_pbsw_modinit();  // Rotary Encoder Push-Button Switch module
+    re_modinit();       // Rotary Encoder (knob) module
     gpio_set_irq_enabled_with_callback(IRQ_ROTARY_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, _gpio_irq_handler);
     gpio_set_irq_enabled(IRQ_CMD_ATTN_SW, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
 }
@@ -95,7 +96,7 @@ static void _handle_apps_started(cmt_msg_t* msg) {
  *
  * @param msg Nothing important in the message.
  */
-static void _handle_hwrt_housekeeping(cmt_msg_t* msg) {
+static void _handle_housekeeping(cmt_msg_t* msg) {
     static uint cnt = 0;
 
     // Request the rotary switch count on even times, get it on odd.
@@ -208,8 +209,16 @@ void _gpio_irq_handler(uint gpio, uint32_t events) {
 }
 
 static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
-    // The GPIO needs to be low for at least 80ms to be considered a button press.
+    // The GPIO needs to be low for at least 8ms to be considered a button press.
     if (events & GPIO_IRQ_EDGE_FALL) {
+        // We control the ATTN flag without use of messages, as routines might
+        // not be checking messages.
+        if (sw == SW_ATTNCMD) {
+            _attn_flag = true;
+        }
+        //
+        // The rest of the processing relies on the message system running.
+        //
         // Delay to see if it is user input.
         // Check to see if we have already scheduled a debounce message.
         if (!scheduled_msg_exists2(MSG_SW_DEBOUNCE, _sw_debounce)) {
@@ -219,7 +228,7 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
             msg.data.sw_action.pressed = true;
             msg.data.sw_action.longpress = false;
             msg.data.sw_action.repeat = false;
-            schedule_msg_in_ms(80, &msg);
+            schedule_msg_in_ms(8, &msg);
         }
     }
     if (events & GPIO_IRQ_EDGE_RISE) {
@@ -238,6 +247,17 @@ static void _sw_irq_handler(switch_id_t sw, uint32_t events) {
     }
 }
 
+// ====================================================================
+// Public methods
+// ====================================================================
+
+void attn_clear() {
+    _attn_flag = false;
+}
+
+bool attn_is_set() {
+    return (_attn_flag);
+}
 
 // ====================================================================
 // CORE-1 root methods
@@ -298,17 +318,17 @@ static void _hwrt_started(cmt_msg_t* msg) {
     spi_init(SPI_SD_DISP_DEVICE, SPI_SLOW_SPEED);
 
     // Disk Operations
-    dskops_minit();
+    dskops_modinit();
 
     // Display
-    display_minit(true); // Initialize, and invert the display (as it is mounted upside down)
+    display_modinit(true); // Initialize, and invert the display (as it is mounted upside down)
 
     // Let the USB subsystem have some time to come up, then
     // Switch the console over to the USB
     cmt_run_after_ms(100, _console_switch_to_usb, NULL);
 
     cmt_msg_hdlr_add(MSG_APPS_STARTED, _handle_apps_started);
-    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_hwrt_housekeeping);
+    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_housekeeping);
     cmt_msg_hdlr_add(MSG_HWRT_TEST, _handle_hwrt_test);
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
 

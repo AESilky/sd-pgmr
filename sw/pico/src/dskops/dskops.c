@@ -71,7 +71,7 @@ static void _delay_action(void* data) {
 // ====================================================================
 
 /**
- * @brief Handle XYZ Housekeeping tasks. This is triggered every ~16ms.
+ * @brief Handle Housekeeping tasks. This is triggered every ~16ms.
  *
  * For reference, 625 times is 10 seconds.
  *
@@ -163,7 +163,7 @@ FRESULT dsk_unmount_sd() {
 // Initialization/Start-Up Methods
 // ====================================================================
 
-void dskops_minit() {
+void dskops_modinit() {
     if (_initialized) {
         board_panic("!!! dskops_module_init: Called more than once !!!");
     }

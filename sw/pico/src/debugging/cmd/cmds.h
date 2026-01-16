@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 
-extern void dbcmds_minit();
+extern void dbcmds_modinit();
 
 #ifdef __cplusplus
 }

@@ -151,7 +151,7 @@ const cmd_handler_entry_t cmds_dbus_data_entry = {
     _exec_data,
     7,
     ".dbusdata",
-    "[val(hex)]"
+    "[val(hex)]",
     "Get value from Data Bus. Set value to Data Bus.",
 };
 
@@ -159,7 +159,7 @@ const cmd_handler_entry_t cmds_dbus_dir_entry = {
     _exec_dir,
     7,
     ".dbusdir",
-    "[I|O]"
+    "[I|O]",
     "Show the direction of the Data Bus. Set the direction of the Data Bus.",
 };
 
@@ -189,7 +189,7 @@ const cmd_handler_entry_t cmds_dbus_wr_entry = {
 
 
 
-void dbuscmds_minit(void) {
+void dbuscmds_modinit(void) {
     cmd_register(&cmds_dbus_data_entry);
     cmd_register(&cmds_dbus_dir_entry);
     cmd_register(&cmds_dbus_dlatch_entry);

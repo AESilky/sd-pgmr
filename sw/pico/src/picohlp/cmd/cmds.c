@@ -44,6 +44,6 @@ const cmd_handler_entry_t cmds_bootldr_entry = {
 };
 
 
-void picocmds_minit(void) {
+void picocmds_modinit(void) {
     cmd_register(&cmds_bootldr_entry);
 }

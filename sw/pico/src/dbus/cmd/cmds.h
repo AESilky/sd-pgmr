@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-extern void dbuscmds_minit(void);
+extern void dbuscmds_modinit(void);
 
 #ifdef __cplusplus
 }

@@ -76,7 +76,7 @@ static term_notify_on_input_fn _term_notify_on_input; // Holds a function pointe
 
 /**
  * @brief Read multiple characters from the terminal with a timeout. Intended for automated/terminal
- * responses/input, not for user input. User input should be aquired using `term_getline` which gets input without
+ * responses/input, not for user input. User input should be acquired using `term_getline` which gets input without
  * doing a sleep.
  *
  */
@@ -114,6 +114,8 @@ static int _read_from_term(char* buf, int maxlen, char term_char, int max_wait) 
 
 /**
  * @brief Callback function that is registered with the STDIO handler to be notified when characters become available.
+ *
+ * This is called from an ISR; keep it brief!
  *
  * @param param Value that is passed to us that we registered with.
  */
@@ -280,11 +282,24 @@ int term_getc(void) {
 }
 
 /**
- * @note This must be called while `sleep` is allowed.
+ * @brief Set up to receive input from the terminal.
+ * @ingroup term
  */
-void term_minit() {
+void term_init0() {
     // Input handler...
     stdio_set_chars_available_callback(_stdio_chars_available, NULL);   // We can pass a parameter if we want
+    term_input_buf_clear();
+}
+
+void term_init1() {
+    term_reset();
+    sleep_ms(100); // Allow the terminal to reset.
+}
+
+/**
+ * @note This must be called while `sleep` is allowed.
+ */
+void term_init() {
     // Terminal type and screen size...
     term_reset();
     sleep_ms(100); // Allow the terminal to reset.
@@ -301,7 +316,7 @@ void term_minit() {
     // Maybe process the response? For now, just store it and print it.
     info_printf("Term - Name: %s\n", (_term_name));
     // Set the terminal type to one we want
-    term_set_type(VT_510_TYPE_SPEC, VT_510_ID_SPEC);
+    term_set_type(VT_220_TYPE_SPEC, VT_220_ID_SPEC);
     term_set_size(48, 132);
     term_color_default();
     term_cursor_on(true);

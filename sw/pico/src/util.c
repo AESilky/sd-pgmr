@@ -200,8 +200,8 @@ char* str_value_create(const char* value) {
     return (malloced_value);
 }
 
-int strcpynt(char* dest, const char* src, size_t maxchars) {
-    int n = 0;
+size_t strcpynt(char* dest, const char* src, size_t maxchars) {
+    size_t n = 0;
     char c;
 
     for (; n < maxchars; n++) {

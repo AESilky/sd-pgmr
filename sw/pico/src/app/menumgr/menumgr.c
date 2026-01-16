@@ -482,12 +482,15 @@ static void _dlg_focus(dlg_ctx_t* dlg) {
     while (df && !df->_focus) {
         df = df->_next;
     }
-    df->_focus = false;
-    // See if it has a timeout. If so, start it and cancel others.
-    if (dlg->_toms) {
-        cmt_msg_t msg;
+    if (df) {
+        df->_focus = false;
+        // cancel any timeout
         int32_t msl = scheduled_msg_cancel(MSG_DLG_TIMEOUT);
         df->_toms = msl;
+    }
+    // See if it has a timeout. If so, start it.
+    if (dlg->_toms) {
+        cmt_msg_t msg;
         cmt_msg_init(&msg, MSG_DLG_TIMEOUT);
         msg.data.ptr = MDPTR(dlg);
         schedule_msg_in_ms(dlg->_toms, &msg);
@@ -627,7 +630,7 @@ static void _item_select(const mnu_item_t* itemsel) {
 static const mnu_t* _pop_menu() {
     menu_stack_t* current = _menus_head;
     // pop current off
-    if (current) {
+    if (current && current->prev) {
         _menus_head = current->prev;
         if (current->menu->type == MENU_DYNAMIC) {
             // Call 'destroy' on Dynamic Menus
@@ -657,7 +660,7 @@ static bool _pop_to_menu(const mnu_t* menu) {
     const mnu_t* cm;
     do {
         cm = _pop_menu();
-    } while(cm != menu);
+    } while(cm && cm != menu);
     return (true);
 }
 
@@ -783,7 +786,7 @@ void dlg_dismiss(dlg_ctx_t* cntx) {
     }
 }
 
-dlg_ctx_t* dlg_confirm_notext(int32_t ms, msg_handler_fn on_enter, msg_handler_fn on_cancel) {
+dlg_ctx_t* dlg_wait_or_cancel(int32_t ms, msg_handler_fn on_enter, msg_handler_fn on_cancel) {
     dlg_ctx_t* cntx = _dlg_alloc();
     if (!cntx) {
         goto _finally;

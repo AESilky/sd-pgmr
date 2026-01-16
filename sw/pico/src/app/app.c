@@ -53,7 +53,7 @@
 static void _show_psa(proc_status_accum_t* psa, int corenum);
 
 // Message handler functions...
-static void _handle_app_housekeeping(cmt_msg_t* msg);
+static void _handle_housekeeping(cmt_msg_t* msg);
 //
 static void _handle_rotary_change(cmt_msg_t* msg);
 static void _handle_switch_action(cmt_msg_t* msg);
@@ -119,7 +119,7 @@ static void _display_proc_status(void* data) {
 // Message Handlers
 // ############################################################################
 //
-static void _handle_app_housekeeping(cmt_msg_t* msg) {
+static void _handle_housekeeping(cmt_msg_t* msg) {
 }
 
 static void _handle_rotary_change(cmt_msg_t* msg) {
@@ -203,7 +203,7 @@ static void _modinit(void) {
     // Add our message handlers
     cmt_msg_hdlr_add(MSG_ROTARY_CHG, _handle_rotary_change);
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
-    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_app_housekeeping);
+    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_housekeeping);
 
     // Initialize the Menus and Menu Manager
     appops_modinit();

@@ -103,8 +103,9 @@ static void _op_leave() {
     // Try to turn the power off
     pdo_pwr_request_on(false);
     _shell_out = false;
-    // Create a blank cancel dialog to allow the user to exit the display early.
-    _dialog = dlg_confirm_notext(8000, _on_dlg_cancel, _on_dlg_cancel);
+    // Create a blank cancel dialog to allow the user to exit the display early,
+    // or they can wait for the timeout.
+    _dialog = dlg_wait_or_cancel(6500, _on_dlg_cancel, _on_dlg_cancel);
 }
 
 static void _op_enter(const char* procstr, bool shellout) {
@@ -233,10 +234,10 @@ bool _on_progress(pd_status_type stat, uint32_t x, uint32_t y, uint32_t z) {
             display_string(2, 0, "Loc:", false, false, NoPaint);
         }
         if (x % ONE_K == 0) {
-            if (_shell_out) {
-                shell_putc('.');
-            }
             sprintf(buf, "%05X", x);
+            if (_shell_out) {
+                shell_printf("%s\e[5D", buf);
+            }
             display_string(2, 5, buf, false, false, Paint);
         }
         break;
@@ -546,6 +547,9 @@ pd_op_status_t pdusr_verify(const char* filename, bool shellout) {
     pd_op_status_t retval = PD_VERIFY_FAILED;
     char buf[_TMP_BUF_LEN];
     _op_enter("Verify", shellout);
+    if (shellout) {
+        shell_putc('\n');
+    }
     // Check that the file can be opened to read
     if (!_chk_file_can_read(filename)) {
         goto _finally;
@@ -560,7 +564,7 @@ pd_op_status_t pdusr_verify(const char* filename, bool shellout) {
     }
     uint32_t lastaddr;
     if (_shell_out) {
-        shell_puts("Verifying");
+        shell_puts("Verifying: ");
     }
     display_line(2, "Verifying", DISP_JUSTIFY_CENTER, false, false, NoPaint);
     pd_op_status_t pdos = pd_verify_fb(info, filename, &lastaddr, _on_progress);
@@ -570,7 +574,7 @@ pd_op_status_t pdusr_verify(const char* filename, bool shellout) {
     retval = pdos;
     if (pdos == PD_OP_OK) {
         if (_shell_out) {
-            shell_puts("\nVerified\n");
+            shell_puts("Verified\n");
         }
         display_line(4, "VERIFIED", DISP_JUSTIFY_CENTER, false, false, Paint);
     }

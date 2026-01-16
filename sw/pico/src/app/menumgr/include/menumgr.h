@@ -46,7 +46,7 @@ extern void smenu_enter(const smenu_t* menu);
 
 extern void dlg_dismiss(dlg_ctx_t* cntx);
 
-extern dlg_ctx_t* dlg_confirm_notext(int32_t ms, msg_handler_fn on_enter, msg_handler_fn on_cancel);
+extern dlg_ctx_t* dlg_wait_or_cancel(int32_t ms, msg_handler_fn on_enter, msg_handler_fn on_cancel);
 
 /**
  * @brief Display a file picker.

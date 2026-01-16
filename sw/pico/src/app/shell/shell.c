@@ -45,6 +45,9 @@ static int16_t _getline_index;
 static int _esc_collecting; // If -1, not collecting. Else, index to store the next received character until done.
 static char _esc_collected[ESC_CHARS_MAX + 1]; // Room to collect characters for an escape sequence.
 
+static bool _host_connected;
+static bool _host_welcomed;
+
 static bool _wraptext_on;
 static int _wraptext_column;
 static char _wraptext_line[2 * shell_COLUMNS];
@@ -54,8 +57,9 @@ static uint16_t _scroll_end_line;
 static shell_input_available_handler _input_available_handler;
 static shell_getline_callback_fn _getline_callback; // Function pointer to be called when an input line is ready
 
-
+static void _host_welcome();
 static bool _process_char(char c, bool process_ctrl);
+
 
 static void _do_backspace() {
     if (_getline_index > 0) {
@@ -72,17 +76,56 @@ static bool _handle_es_backspace(sescseq_t escseq, const char* escstr) {
     return (true);
 }
 
-
 /**
- * @brief Message handler for `MSG_INPUT_CHAR_READY`
- * @ingroup ui
+ * @brief Handle Housekeeping tasks. This is triggered every ~16ms.
+ *
+ * For reference, 625 times is 10 seconds.
  *
  * @param msg Nothing important in the message.
  */
-static void _shell_handle_input_char_ready(cmt_msg_t* msg) {
+static void _handle_housekeeping(cmt_msg_t* msg) {
+    static uint cnt = 0;
+
+    if (cnt++ % 11 == 0) {
+        if (stdio_usb_connected()) {
+            if (!_host_connected) {
+                _host_connected = true;
+            }
+            if (!_host_welcomed) {
+                if (term_input_available()) {
+                    _host_welcome();
+                }
+            }
+        }
+        else {
+            _host_connected = false;
+            _host_welcomed = false;
+        }
+    }
+}
+
+/**
+ * @brief Message handler for `MSG_INPUT_CHAR_READY`
+ * @ingroup app
+ *
+ * @param msg Nothing important in the message.
+ */
+static void _handle_input_char_ready(cmt_msg_t* msg) {
     if (NULL != _input_available_handler) {
+        // If there is an input character, a host must be connected
+        _host_connected = true;
         _input_available_handler();
     }
+}
+
+/**
+ * @brief Init/ReInit the terminal (connected)
+ * @ingroup app
+ *
+ * @param msg
+ */
+static void _handle_term_init(cmt_msg_t* msg) {
+    _host_welcome();
 }
 
 /**
@@ -98,63 +141,6 @@ static void _input_ready_hook(void) {
     postAPPMsg(&msg);
     // The hook is cleared on notify, so hook ourself back in.
     term_register_notify_on_input(_input_ready_hook);
-}
-
-static void _draw_station_list_box(uint16_t lines) {
-    // uint16_t nsls = shell_STATION_LIST_LAST_LINE - (lines);
-    // // Save current cursor and set color
-    // term_cursor_save();
-    // term_set_origin_mode(TERM_OM_UPPER_LEFT);
-    // term_color_fg(shell_STATION_LIST_BOX_COLOR_FG);
-    // term_color_bg(shell_STATION_LIST_COLOR_BG);
-    // if (nsls > _station_list_separator_line && _station_list_separator_line > 0) {
-    //     // Need to erase lines from old box
-    //     term_cursor_moveto(_station_list_separator_line, 1);
-    //     for (int i = 0; i <= (shell_STATION_LIST_LAST_LINE - _station_list_separator_line); i++) {
-    //         term_erase_line();
-    //         term_cursor_down_1();
-    //     }
-    // }
-    // // Move to begining of separator line and set
-    // term_cursor_moveto(nsls, 1);
-    // // Draw the top
-    // term_charset(VT_100_LINEDRAW);
-    // for (int i = 0; i < shell_COLUMNS; i++) {
-    //     if (i == (shell_COLUMNS / shell_STATIONS_PER_LINE) || i == ((((shell_COLUMNS / shell_STATIONS_PER_LINE) * 2) + 1))) {
-    //         putchar(VT_LD_TCT);
-    //     }
-    //     else {
-    //         putchar(VT_LD_HOR);
-    //     }
-    // }
-    // // Draw the bars
-    // for (int i = nsls + 1; i <= nsls + lines; i++) {
-    //     term_cursor_moveto(i, ((shell_COLUMNS / shell_STATIONS_PER_LINE) + 1));
-    //     putchar(VT_LD_VER);
-    //     term_cursor_right(shell_COLUMNS / shell_STATIONS_PER_LINE);
-    //     putchar(VT_LD_VER);
-    // }
-    // term_charset(VT_ASCII);
-    // // If the start line is different, change the scroll area
-    // bool scroll_area_smaller = (nsls < _station_list_separator_line);
-    // if (nsls != _station_list_separator_line) {
-    //     _station_list_separator_line = nsls;
-    //     _scroll_end_line = _station_list_separator_line - 1;
-    //     term_set_margin_top_bottom(shell_SCROLL_START_LINE, _scroll_end_line);
-    //     if (scroll_area_smaller) {
-    //         // Restore the previous cursor and if the line is beyond the scroll area, adjust it.
-    //         term_set_origin_mode(TERM_OM_IN_MARGINS);
-    //         term_cursor_restore();
-    //         scr_position_t pos = term_get_cursor_position();
-    //         if (pos.line > _scroll_end_line) {
-    //             term_cursor_moveto(_scroll_end_line, pos.column);
-    //         }
-    //         return;
-    //     }
-    // }
-    // // Put screen back
-    // term_set_origin_mode(TERM_OM_IN_MARGINS);
-    // term_cursor_restore();
 }
 
 static shell_control_char_handler _get_control_char_handler(char c) {
@@ -173,6 +159,10 @@ static void _getline_continue() {
 
     // Process characters that are available.
     while ((ci = term_getc()) >= 0) {
+        if (!_host_welcomed) {
+            _host_welcome();
+            continue;
+        }
         char c = (char)ci;
         if (!_process_char(c, true)) {
             // See if there is a handler registered for this, else BEEP
@@ -188,16 +178,17 @@ static void _getline_continue() {
     term_register_notify_on_input(_input_ready_hook);
 }
 
-static void _header_fill_fixed() {
-    term_cursor_save();
-    term_set_origin_mode(TERM_OM_UPPER_LEFT);
-    term_color_fg(shell_HEADER_COLOR_FG);
-    term_color_bg(shell_HEADER_COLOR_BG);
-    term_cursor_moveto(shell_HEADER_INFO_LINE, 1);
-    term_erase_line();
-    term_color_default();
-    term_set_origin_mode(TERM_OM_IN_MARGINS);
-    term_cursor_restore();
+static void _host_welcome() {
+    // Now to a full init of the terminal
+    term_init();
+    term_set_title(shell_NAME_VERSION);
+    term_text_normal();
+    // Tell the Host hello
+    shell_puts("SilkyDESIGN Flash Programmer\n");
+    _host_welcomed = true;
+    _started = true;
+    shell_build();
+    cmd_activate(true);
 }
 
 static bool _process_char(char c, bool process_ctrl) {
@@ -255,7 +246,7 @@ static bool _process_char(char c, bool process_ctrl) {
                 _getline_buf[_getline_index] = '\0';
                 _getline_index = 0;
                 _getline_callback = NULL;
-                shell_register_input_available_handler(NULL);
+                _input_available_handler = NULL; // Cleared when called
                 fn(_getline_buf);
                 return (true);
                 break;
@@ -302,43 +293,6 @@ static bool _process_char(char c, bool process_ctrl) {
         processed = true;
     }
     return (processed);
-}
-
-static void _status_fill_fixed() {
-    term_cursor_save();
-    term_color_fg(shell_STATUS_COLOR_FG);
-    term_color_bg(shell_STATUS_COLOR_BG);
-    term_set_origin_mode(TERM_OM_UPPER_LEFT);
-    term_cursor_moveto(shell_STATUS_LINE, 1);
-    term_erase_line();
-    printf("%s", shell_NAME_VERSION);
-    term_cursor_moveto(shell_STATUS_LINE, shell_STATUS_LOGO_COL);
-    printf("%s", AES_LOGO);
-    term_set_origin_mode(TERM_OM_IN_MARGINS);
-    term_cursor_restore();
-}
-
-static void _term_init() {
-    _wraptext_on = false;
-    memset(_wraptext_line, 0, sizeof(_wraptext_line));
-    _wraptext_column = 0;
-    _input_available_handler = NULL;
-    // Clear out the control handlers and escape handlers
-    memset(_control_char_handler, 0, sizeof(_control_char_handler));
-    memset(_escseq_handler, 0, sizeof(_escseq_handler));
-    // Register escape sequence handlers
-    shell_register_esc_seq_handler(SES_KEY_ARROW_LF, _handle_es_backspace);
-    //
-    term_reset();
-    term_color_default();
-    term_set_type(VT_510_TYPE_SPEC, VT_510_ID_SPEC);
-    term_set_title(shell_NAME_VERSION);
-    term_set_size(shell_LINES, shell_COLUMNS);
-    term_clear(true);
-    //_draw_station_list_box(0);
-    term_cursor_on(false);
-    term_cursor_moveto(1,1);
-    shell_use_output_color();
 }
 
 void shell_build(void) {
@@ -401,82 +355,86 @@ static void _printc_for_printf_term(char c, void* arg) {
 
 int shell_printf(const char* format, ...) {
     int pl = 0;
-    // if (_wraptext_on) {
-    //     putchar('\n');
-    //     pl = 1;
-    // }
-    va_list xArgs;
-    va_start(xArgs, format);
-    pl += vfctprintf(_printc_for_printf_term, NULL, format, xArgs);
-    va_end(xArgs);
-
+    if (_host_connected) {
+        // if (_wraptext_on) {
+        //     putchar('\n');
+        //     pl = 1;
+        // }
+        va_list xArgs;
+        va_start(xArgs, format);
+        pl += vfctprintf(_printc_for_printf_term, NULL, format, xArgs);
+        va_end(xArgs);
+    }
     return (pl);
 }
 
 int shell_printferr(const char* format, ...) {
-    term_color_pair_t cs = shell_color_get();
-    shell_color_set(TERM_CHR_COLOR_BR_RED, TERM_CHR_COLOR_BLACK);
     int pl = 0;
-    // if (_wraptext_on) {
-    //     putchar('\n');
-    //     pl = 1;
-    // }
-    va_list xArgs;
-    va_start(xArgs, format);
-    pl += vfctprintf(_printc_for_printf_term, NULL, format, xArgs);
-    va_end(xArgs);
-    shell_color_set(cs.fg, cs.bg);
-
+    if (_host_connected) {
+        term_color_pair_t cs = shell_color_get();
+        shell_color_set(TERM_CHR_COLOR_BR_RED, TERM_CHR_COLOR_BLACK);
+        // if (_wraptext_on) {
+        //     putchar('\n');
+        //     pl = 1;
+        // }
+        va_list xArgs;
+        va_start(xArgs, format);
+        pl += vfctprintf(_printc_for_printf_term, NULL, format, xArgs);
+        va_end(xArgs);
+        shell_color_set(cs.fg, cs.bg);
+    }
     return (pl);
 }
 
 static void _putchar_for_app(char c) {
-    if ('\n' == c) {
-        putchar(c);
-        _wraptext_column = 0;
-        return;
-    }
-    if (_wraptext_column == shell_COLUMNS) {
-        // Printing this will cause a wrap.
-        if (' ' == c) {
-            // It's a space. Just print a newline instead.
-            putchar('\n');
+    if (_host_connected) {
+        if ('\n' == c) {
+            putchar(c);
             _wraptext_column = 0;
             return;
         }
-        else {
-            // See if we can move back to a space
-            int i = 0;
-            for (; i < _wraptext_column; i++) {
-                if (' ' == _wraptext_line[_wraptext_column - i]) {
-                    break;
-                }
-            }
-            if (i < _wraptext_column) {
-                // Yes there was a space in the line. Backup, print a '\n', then reprint to the end of line.
-                term_cursor_left(i-1);
-                term_erase_eol();
-                putchar('\n');
-                int nc = 0;
-                for (int j = ((_wraptext_column - i) + 1); j < _wraptext_column; j++) {
-                    putchar(_wraptext_line[j]);
-                    nc++;
-                }
-                _wraptext_column = nc;
-            }
-            else {
-                // No spaces in the current line. Just print a '\n' (breaking the word).
+        if (_wraptext_column == shell_COLUMNS) {
+            // Printing this will cause a wrap.
+            if (' ' == c) {
+                // It's a space. Just print a newline instead.
                 putchar('\n');
                 _wraptext_column = 0;
+                return;
+            }
+            else {
+                // See if we can move back to a space
+                int i = 0;
+                for (; i < _wraptext_column; i++) {
+                    if (' ' == _wraptext_line[_wraptext_column - i]) {
+                        break;
+                    }
+                }
+                if (i < _wraptext_column) {
+                    // Yes there was a space in the line. Backup, print a '\n', then reprint to the end of line.
+                    term_cursor_left(i-1);
+                    term_erase_eol();
+                    putchar('\n');
+                    int nc = 0;
+                    for (int j = ((_wraptext_column - i) + 1); j < _wraptext_column; j++) {
+                        putchar(_wraptext_line[j]);
+                        nc++;
+                    }
+                    _wraptext_column = nc;
+                }
+                else {
+                    // No spaces in the current line. Just print a '\n' (breaking the word).
+                    putchar('\n');
+                    _wraptext_column = 0;
+                }
             }
         }
-    }
-    _wraptext_line[_wraptext_column] = c;
-    putchar(c);
-    _wraptext_column++;
-    if ('=' == c) {
-        putchar('\n');
-        _wraptext_column = 0;
+        _wraptext_line[_wraptext_column] = c;
+        putchar(c);
+        _wraptext_column++;
+        if ('=' == c) {
+            putchar('\n');
+            _wraptext_column = 0;
+        }
     }
 }
 
@@ -495,17 +453,21 @@ void shell_put_apptext(char* str) {
 }
 
 void shell_putc(uint8_t c) {
-    putchar(c);
+    if (_host_connected) {
+        putchar(c);
+    }
 }
 
 void shell_puts(const char* str) {
-    if (_wraptext_on) {
-        putchar('\n');
-        _wraptext_on = false;
+    if (_host_connected) {
+        if (_wraptext_on) {
+            putchar('\n');
+            _wraptext_on = false;
+        }
+        int len = (int)strlen(str);
+        stdio_put_string(str, len, false, true);
+        stdio_flush();
     }
-    int len = (int)strlen(str);
-    stdio_put_string(str, len, false, true);
-    stdio_flush();
 }
 
 void shell_register_control_char_handler(char c, shell_control_char_handler handler_fn) {
@@ -559,11 +521,12 @@ void shell_start() {
     if (_started) {
         board_panic("!!! Shell should only be started once. !!!");
     }
-    _started = true;
-    shell_build();
-
-    _term_init();
+    // Register our input handler with term
+    term_register_notify_on_input(_input_ready_hook);
+    // Do first init of the terminal. Will do another when we receive the first character.
+    term_init1();
     term_text_normal();
+    // Initialize the CMD module
     cmd_modinit();
 
     // Initialize all of the modules that have commands
@@ -584,9 +547,13 @@ void shell_modinit() {
     }
     _initialized = true;
 
-    term_modinit();
     _esc_collecting = ESC_NOT_IN_PROGRESS;
+    // Base terminal initialization
+    term_init0();
     //
-    // Register our message handler
-    cmt_msg_hdlr_add(MSG_INPUT_CHAR_READY, _shell_handle_input_char_ready);
+    // Register our message handlers
+    cmt_msg_hdlr_add(MSG_INPUT_CHAR_READY, _handle_input_char_ready);
+    cmt_msg_hdlr_add(MSG_CMD_INIT_TERMINAL, _handle_term_init);
+    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_housekeeping);
+
 }

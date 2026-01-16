@@ -48,7 +48,7 @@ static void _gpio_irq_handler(uint gpio, uint32_t events);
 static void _sw_irq_handler(switch_id_t sw, uint32_t events);
 
 // Message handler methods...
-static void _handle_hwrt_housekeeping(cmt_msg_t* msg);
+static void _handle_housekeeping(cmt_msg_t* msg);
 static void _handle_hwrt_test(cmt_msg_t* msg);
 static void _handle_apps_started(cmt_msg_t* msg);
 
@@ -96,7 +96,7 @@ static void _handle_apps_started(cmt_msg_t* msg) {
  *
  * @param msg Nothing important in the message.
  */
-static void _handle_hwrt_housekeeping(cmt_msg_t* msg) {
+static void _handle_housekeeping(cmt_msg_t* msg) {
     static uint cnt = 0;
 
     // Request the rotary switch count on even times, get it on odd.
@@ -328,7 +328,7 @@ static void _hwrt_started(cmt_msg_t* msg) {
     cmt_run_after_ms(100, _console_switch_to_usb, NULL);
 
     cmt_msg_hdlr_add(MSG_APPS_STARTED, _handle_apps_started);
-    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_hwrt_housekeeping);
+    cmt_msg_hdlr_add(MSG_PERIODIC_RT, _handle_housekeeping);
     cmt_msg_hdlr_add(MSG_HWRT_TEST, _handle_hwrt_test);
     cmt_msg_hdlr_add(MSG_SW_ACTION, _handle_switch_action);
 

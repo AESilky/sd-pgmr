@@ -14,7 +14,7 @@ extern "C" {
 #include "cmt.h"
 #include "../term/term.h"
 
-#define shell_NAME_VERSION "AES v0.1"
+#define shell_NAME_VERSION "SD Flash Programmer"
 
 
 // NOTE: Terminal line and column numbers are 1-based.

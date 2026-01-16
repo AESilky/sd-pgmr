@@ -330,7 +330,7 @@ _finally:
     return (retval);
 }
 
-static int _exec_dump(int argc, char** argv, const char* unparsed) {
+static int _exec_ddump(int argc, char** argv, const char* unparsed) {
     static uint16_t _dump_len = 256; // Display 256 bytes unless told otherwise
 
     if (argc > 3) {
@@ -380,6 +380,18 @@ static int _exec_dump(int argc, char** argv, const char* unparsed) {
     }
     int len = 0;
     uint8_t v[16];
+    // Display a header to identify the bytes
+    uint8_t sb = lowByte(_addr);
+    shell_puts("       ");
+    for (int n = 0; n < 16; n++) {
+        shell_printf("%02X ", lowByte(n+sb));
+    }
+    shell_puts("  ");
+    for (int n = 0; n < 16; n++) {
+        shell_printf("%1X ", lowByte((n + sb) & 0x0F));
+    }
+    shell_putc('\n');
+    shell_puts("=====  == == == == == == == == == == == == == == == ==   = = = = = = = = = = = = = = = =\n");
     while (len < _dump_len) {
         // Read and display rows of up to 16 bytes
         //
@@ -585,7 +597,9 @@ static int _exec_dverify(int argc, char** argv, const char* unparsed) {
     }
     // See if the file exists and how big it is.
     const char* filename = *argv;
+    term_cursor_on(false);
     pd_op_status_t pdos = pdusr_verify(filename, true);
+    term_cursor_on(true);
     int retval = (pdos == PD_OP_OK ? 0 : -2);
     return (retval);
 }
@@ -899,7 +913,7 @@ const cmd_handler_entry_t cmds_deverase_entry = {
 };
 
 const cmd_handler_entry_t cmds_devdump_entry = {
-    _exec_dump,
+    _exec_ddump,
     4,
     "dump",
     "[[addr(hex)|.] len(dec)]",

@@ -71,7 +71,7 @@ static void _delay_action(void* data) {
 // ====================================================================
 
 /**
- * @brief Handle XYZ Housekeeping tasks. This is triggered every ~16ms.
+ * @brief Handle Housekeeping tasks. This is triggered every ~16ms.
  *
  * For reference, 625 times is 10 seconds.
  *
